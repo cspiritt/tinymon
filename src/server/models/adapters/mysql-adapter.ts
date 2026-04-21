@@ -67,8 +67,14 @@ export class MySQLAdapter extends DatabaseAdapter {
         failure_count INT DEFAULT 0,
         last_status VARCHAR(50) DEFAULT 'unknown',
         last_check BIGINT DEFAULT 0,
-        created_at BIGINT DEFAULT UNIX_TIMESTAMP()
+        created_at BIGINT DEFAULT UNIX_TIMESTAMP(),
+        service_group VARCHAR(255) DEFAULT ''
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    
+    // Миграция: добавить колонку service_group если отсутствует
+    await connection.query(`
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS service_group VARCHAR(255) DEFAULT ''
     `);
 
     // Таблица результатов проверок
@@ -94,21 +100,23 @@ export class MySQLAdapter extends DatabaseAdapter {
 
       for (const service of services) {
         await connection.query(`
-          INSERT INTO services (id, name, type, address, interval, timeout)
-          VALUES (?, ?, ?, ?, ?, ?)
+          INSERT INTO services (id, name, type, address, interval, timeout, service_group)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
             name = VALUES(name),
             type = VALUES(type),
             address = VALUES(address),
             interval = VALUES(interval),
-            timeout = VALUES(timeout)
+            timeout = VALUES(timeout),
+            service_group = VALUES(service_group)
         `, [
           service.id,
           service.name,
           service.type,
           service.address,
           service.interval,
-          service.timeout || 5000
+          service.timeout || 5000,
+          service.group || ''
         ]);
       }
 
@@ -125,7 +133,7 @@ export class MySQLAdapter extends DatabaseAdapter {
   async getAllServices(): Promise<any[]> {
     const connection = await this.pool.getConnection();
     try {
-      const [rows] = await connection.query('SELECT * FROM services ORDER BY name');
+      const [rows] = await connection.query('SELECT *, service_group AS `group` FROM services ORDER BY service_group, name');
       return rows;
     } finally {
       connection.release();
@@ -135,7 +143,7 @@ export class MySQLAdapter extends DatabaseAdapter {
   async getService(id: string): Promise<any> {
     const connection = await this.pool.getConnection();
     try {
-      const [rows] = await connection.query('SELECT * FROM services WHERE id = ?', [id]);
+      const [rows] = await connection.query('SELECT *, service_group AS `group` FROM services WHERE id = ?', [id]);
       return rows[0] || null;
     } finally {
       connection.release();

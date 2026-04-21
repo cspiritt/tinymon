@@ -391,6 +391,121 @@ body {
     max-height: calc(80vh - 70px);
 }
 
+/* Groups */
+.groups-container {
+    margin-top: 20px;
+}
+
+.service-group {
+    background: white;
+    border-radius: 15px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.group-header {
+    padding: 20px 25px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.group-header:hover {
+    background: #e9ecef;
+}
+
+.group-header.collapsed {
+    border-bottom: none;
+}
+
+.group-header.collapsed .group-chevron {
+    transform: rotate(-90deg);
+}
+
+.group-title {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.group-title h3 {
+    font-size: 1.4rem;
+    color: #2c3e50;
+    margin: 0;
+    flex-grow: 1;
+}
+
+.group-chevron {
+    font-size: 1rem;
+    color: #6c757d;
+    transition: transform 0.3s ease;
+}
+
+.group-stats {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.group-stat {
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.group-stat.total {
+    background: #e9ecef;
+    color: #2c3e50;
+}
+
+.group-stat.ok {
+    background: #d4edda;
+    color: #155724;
+}
+
+.group-stat.warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.group-stat.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.group-body {
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.group-body.collapsed {
+    max-height: 0;
+    overflow: hidden;
+}
+
+.group-body.expanded {
+    max-height: none;
+}
+
+.group-body .services-table {
+    margin: 0;
+    border: none;
+}
+
+.group-body .services-table thead {
+    background: #f8f9fa;
+}
+
+.group-body .services-table th {
+    border-top: 1px solid #e9ecef;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .header h1 {
@@ -414,5 +529,28 @@ body {
     
     .stat-number {
         font-size: 2rem;
+    }
+    
+    /* Groups responsive */
+    .group-title {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .group-stats {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .group-stat {
+        font-size: 0.8rem;
+        padding: 3px 8px;
+    }
+    
+    .group-body .services-table th,
+    .group-body .services-table td {
+        padding: 8px;
+        font-size: 0.85rem;
     }
 }

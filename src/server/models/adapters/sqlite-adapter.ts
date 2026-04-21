@@ -48,7 +48,8 @@ export class SQLiteAdapter extends DatabaseAdapter {
         failure_count INTEGER DEFAULT 0,
         last_status TEXT DEFAULT 'unknown',
         last_check INTEGER DEFAULT 0,
-        created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        created_at INTEGER DEFAULT (strftime('%s', 'now')),
+        service_group TEXT DEFAULT ''
       )
     `);
 
@@ -70,18 +71,27 @@ export class SQLiteAdapter extends DatabaseAdapter {
       CREATE INDEX IF NOT EXISTS idx_checks_service_id ON checks(service_id);
       CREATE INDEX IF NOT EXISTS idx_checks_checked_at ON checks(checked_at);
     `);
+
+    // Миграция для существующих таблиц (добавить колонку service_group если отсутствует)
+    try {
+      this.db.exec(`ALTER TABLE services ADD COLUMN service_group TEXT DEFAULT ''`);
+      console.log('Миграция: добавлена колонка service_group');
+    } catch (err) {
+      // Колонка уже существует, игнорируем ошибку
+    }
   }
 
   async syncServices(services: Service[]): Promise<void> {
     const stmt = this.db.prepare(`
-      INSERT INTO services (id, name, type, address, interval, timeout)
-      VALUES (@id, @name, @type, @address, @interval, @timeout)
+      INSERT INTO services (id, name, type, address, interval, timeout, service_group)
+      VALUES (@id, @name, @type, @address, @interval, @timeout, @service_group)
       ON CONFLICT(id) DO UPDATE SET
         name = excluded.name,
         type = excluded.type,
         address = excluded.address,
         interval = excluded.interval,
-        timeout = excluded.timeout
+        timeout = excluded.timeout,
+        service_group = excluded.service_group
     `);
 
     const transaction = this.db.transaction((services: Service[]) => {
@@ -92,7 +102,8 @@ export class SQLiteAdapter extends DatabaseAdapter {
           type: service.type,
           address: service.address,
           interval: service.interval,
-          timeout: service.timeout || 5000
+          timeout: service.timeout || 5000,
+          service_group: service.group || ''
         });
       }
     });
@@ -102,11 +113,11 @@ export class SQLiteAdapter extends DatabaseAdapter {
   }
 
   async getAllServices(): Promise<any[]> {
-    return this.db.prepare('SELECT * FROM services ORDER BY name').all();
+    return this.db.prepare('SELECT *, service_group AS "group" FROM services ORDER BY service_group, name').all();
   }
 
   async getService(id: string): Promise<any> {
-    return this.db.prepare('SELECT * FROM services WHERE id = ?').get(id);
+    return this.db.prepare('SELECT *, service_group AS "group" FROM services WHERE id = ?').get(id);
   }
 
   async updateServiceStatus(

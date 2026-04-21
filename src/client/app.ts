@@ -9,6 +9,7 @@ interface Service {
     lastCheck: number;
     lastStatus: string;
     createdAt: number;
+    group?: string;
 }
 
 interface Check {
@@ -46,6 +47,8 @@ class MonitoringUI {
     private closeModalBtn: HTMLElement | null;
     private historyContent: HTMLElement | null;
     private serviceRows: NodeListOf<HTMLElement>;
+    private groupHeaders: NodeListOf<HTMLElement>;
+    private groupBodies: NodeListOf<HTMLElement>;
 
     constructor() {
         this.refreshBtn = document.getElementById('refresh-btn');
@@ -54,21 +57,52 @@ class MonitoringUI {
         this.closeModalBtn = document.querySelector('.close-modal');
         this.historyContent = document.getElementById('history-content');
         this.serviceRows = document.querySelectorAll('.service-row');
-        
+        this.groupHeaders = document.querySelectorAll('.group-header');
+        this.groupBodies = document.querySelectorAll('.group-body');
+
         console.log('MonitoringUI constructor:', {
             refreshBtn: this.refreshBtn,
             lastUpdateTime: this.lastUpdateTime,
             modal: this.modal,
             closeModalBtn: this.closeModalBtn,
             historyContent: this.historyContent,
-            serviceRowsCount: this.serviceRows.length
+            serviceRowsCount: this.serviceRows.length,
+            groupHeadersCount: this.groupHeaders.length,
+            groupBodiesCount: this.groupBodies.length
         });
     }
 
     public init(): void {
         this.setupEventListeners();
+        this.setupGroupHandlers();
         this.updateLastUpdateTime();
         this.setupAutoRefresh();
+    }
+
+    private setupGroupHandlers(): void {
+        this.groupHeaders.forEach(header => {
+            header.addEventListener('click', () => {
+                const groupName = header.getAttribute('data-group-name');
+                if (!groupName) return;
+                
+                const groupBody = document.querySelector(`.group-body[data-group-name="${groupName}"]`);
+                if (!groupBody) return;
+                
+                const isCollapsed = header.classList.contains('collapsed');
+                
+                // Переключаем состояние
+                header.classList.toggle('collapsed');
+                header.classList.toggle('expanded');
+                groupBody.classList.toggle('collapsed');
+                groupBody.classList.toggle('expanded');
+                
+                // Поворачиваем шеврон
+                const chevron = header.querySelector('.group-chevron');
+                if (chevron && chevron instanceof HTMLElement) {
+                    chevron.style.transform = isCollapsed ? 'rotate(0deg)' : 'rotate(-90deg)';
+                }
+            });
+        });
     }
 
     private updateLastUpdateTime(): void {

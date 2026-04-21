@@ -5,6 +5,16 @@ export interface Service {
   address: string;
   interval: number;
   timeout?: number;
+  group?: string;
+}
+
+export interface ServiceGroup {
+  name: string;
+  services: Service[];
+  allOk: boolean;
+  okCount: number;
+  warningCount: number;
+  errorCount: number;
 }
 
 export interface DatabaseConfig {

@@ -60,8 +60,14 @@ export class PostgresAdapter extends DatabaseAdapter {
           failure_count INTEGER DEFAULT 0,
           last_status TEXT DEFAULT 'unknown',
           last_check BIGINT DEFAULT 0,
-          created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())
+          created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()),
+          service_group TEXT DEFAULT ''
         )
+      `);
+      
+      // Миграция: добавить колонку service_group если отсутствует
+      await client.query(`
+        ALTER TABLE services ADD COLUMN IF NOT EXISTS service_group TEXT DEFAULT ''
       `);
 
       // Таблица результатов проверок
@@ -93,21 +99,23 @@ export class PostgresAdapter extends DatabaseAdapter {
 
       for (const service of services) {
         await client.query(`
-          INSERT INTO services (id, name, type, address, interval, timeout)
-          VALUES ($1, $2, $3, $4, $5, $6)
+          INSERT INTO services (id, name, type, address, interval, timeout, service_group)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
           ON CONFLICT (id) DO UPDATE SET
             name = EXCLUDED.name,
             type = EXCLUDED.type,
             address = EXCLUDED.address,
             interval = EXCLUDED.interval,
-            timeout = EXCLUDED.timeout
+            timeout = EXCLUDED.timeout,
+            service_group = EXCLUDED.service_group
         `, [
           service.id,
           service.name,
           service.type,
           service.address,
           service.interval,
-          service.timeout || 5000
+          service.timeout || 5000,
+          service.group || ''
         ]);
       }
 
@@ -124,7 +132,7 @@ export class PostgresAdapter extends DatabaseAdapter {
   async getAllServices(): Promise<any[]> {
     const client = await this.pool.connect();
     try {
-      const result = await client.query('SELECT * FROM services ORDER BY name');
+      const result = await client.query('SELECT *, service_group AS "group" FROM services ORDER BY service_group, name');
       return result.rows;
     } finally {
       client.release();
@@ -134,7 +142,7 @@ export class PostgresAdapter extends DatabaseAdapter {
   async getService(id: string): Promise<any> {
     const client = await this.pool.connect();
     try {
-      const result = await client.query('SELECT * FROM services WHERE id = $1', [id]);
+      const result = await client.query('SELECT *, service_group AS "group" FROM services WHERE id = $1', [id]);
       return result.rows[0] || null;
     } finally {
       client.release();

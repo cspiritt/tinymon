@@ -1,7 +1,7 @@
 {
-  "name": "Google HTTP",
+  "name": "Yandex HTTP",
   "type": "http",
-  "address": "https://www.google.com",
+  "address": "https://yandex.ru",
   "interval": 30,
   "timeout": 3000,
   "group": "Поисковые системы"

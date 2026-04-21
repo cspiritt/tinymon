@@ -43,63 +43,88 @@
                 </div>
             </div>
 
-            <div class="services-table-container">
-                <table class="services-table">
-                    <thead>
-                        <tr>
-                            <th>Сервис</th>
-                            <th>Тип</th>
-                            <th>Адрес</th>
-                            <th>Интервал</th>
-                            <th>Статус</th>
-                            <th>Неудачи</th>
-                            <th>Последняя проверка</th>
-                            <th>Действия</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <% services.forEach(service => { %>
-                        <tr class="service-row" data-service-id="<%= service.id %>">
-                            <td class="service-name">
-                                <i class="fas <%= service.type === 'http' ? 'fa-globe' : 'fa-network-wired' %>"></i>
-                                <%= service.name %>
-                            </td>
-                            <td class="service-type"><%= service.type.toUpperCase() %></td>
-                            <td class="service-address"><%= service.address %></td>
-                            <td class="service-interval"><%= service.interval %> сек</td>
-                            <td class="service-status">
-                                <span class="status-badge status-<%= service.status.toLowerCase() %>">
-                                    <%= service.status %>
-                                </span>
-                            </td>
-                            <td class="service-failures">
-                                <span class="failure-count"><%= service.failure_count %></span>
-                            </td>
-                            <td class="service-last-check">
-                                <% if (service.lastCheck) { %>
-                                    <%= new Date(service.lastCheck).toLocaleString() %>
-                                <% } else { %>
-                                    Никогда
-                                <% } %>
-                            </td>
-                            <td class="service-actions">
-                                <button class="action-btn check-btn" title="Проверить сейчас">
-                                    <i class="fas fa-bolt"></i>
-                                </button>
-                                <button class="action-btn history-btn" title="История проверок">
-                                    <i class="fas fa-history"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <% }) %>
-                    </tbody>
-                </table>
-                <% if (services.length === 0) { %>
+            <div class="groups-container">
+                <% if (groups.length === 0) { %>
                 <div class="no-services">
                     <i class="fas fa-inbox"></i>
                     <p>Нет настроенных сервисов для мониторинга.</p>
                     <p>Добавьте файлы конфигурации в папку <code>settings.d</code></p>
                 </div>
+                <% } else { %>
+                    <% groups.forEach(group => { %>
+                    <div class="service-group" data-group-name="<%= group.name %>">
+                        <div class="group-header <%= group.allOk ? 'collapsed' : 'expanded' %>" data-group-name="<%= group.name %>">
+                            <div class="group-title">
+                                <i class="fas fa-chevron-down group-chevron"></i>
+                                <h3><%= group.name %></h3>
+                                <div class="group-stats">
+                                    <span class="group-stat total"><%= group.services.length %> сервисов</span>
+                                    <% if (group.okCount > 0) { %>
+                                        <span class="group-stat ok"><i class="fas fa-check-circle"></i> <%= group.okCount %></span>
+                                    <% } %>
+                                    <% if (group.warningCount > 0) { %>
+                                        <span class="group-stat warning"><i class="fas fa-exclamation-triangle"></i> <%= group.warningCount %></span>
+                                    <% } %>
+                                    <% if (group.errorCount > 0) { %>
+                                        <span class="group-stat error"><i class="fas fa-times-circle"></i> <%= group.errorCount %></span>
+                                    <% } %>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="group-body <%= group.allOk ? 'collapsed' : 'expanded' %>" data-group-name="<%= group.name %>">
+                            <table class="services-table">
+                                <thead>
+                                    <tr>
+                                        <th>Сервис</th>
+                                        <th>Тип</th>
+                                        <th>Адрес</th>
+                                        <th>Интервал</th>
+                                        <th>Статус</th>
+                                        <th>Неудачи</th>
+                                        <th>Последняя проверка</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% group.services.forEach(service => { %>
+                                    <tr class="service-row" data-service-id="<%= service.id %>">
+                                        <td class="service-name">
+                                            <i class="fas <%= service.type === 'http' ? 'fa-globe' : 'fa-network-wired' %>"></i>
+                                            <%= service.name %>
+                                        </td>
+                                        <td class="service-type"><%= service.type.toUpperCase() %></td>
+                                        <td class="service-address"><%= service.address %></td>
+                                        <td class="service-interval"><%= service.interval %> сек</td>
+                                        <td class="service-status">
+                                            <span class="status-badge status-<%= service.status.toLowerCase() %>">
+                                                <%= service.status %>
+                                            </span>
+                                        </td>
+                                        <td class="service-failures">
+                                            <span class="failure-count"><%= service.failure_count %></span>
+                                        </td>
+                                        <td class="service-last-check">
+                                            <% if (service.lastCheck) { %>
+                                                <%= new Date(service.lastCheck).toLocaleString() %>
+                                            <% } else { %>
+                                                Никогда
+                                            <% } %>
+                                        </td>
+                                        <td class="service-actions">
+                                            <button class="action-btn check-btn" title="Проверить сейчас">
+                                                <i class="fas fa-bolt"></i>
+                                            </button>
+                                            <button class="action-btn history-btn" title="История проверок">
+                                                <i class="fas fa-history"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <% }) %>
                 <% } %>
             </div>
         </main>
