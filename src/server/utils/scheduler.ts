@@ -13,7 +13,7 @@ class Scheduler {
   }
 
   start(): void {
-    schedulerLogger.info('Запуск планировщика проверок...');
+    schedulerLogger.debug('Запуск планировщика проверок...');
     this.scheduleAllServices();
 
     // Также планируем перезагрузку конфигурации каждые 5 минут
@@ -30,7 +30,7 @@ class Scheduler {
     for (const service of services) {
       this.scheduleService(service);
     }
-    schedulerLogger.info(`Запланировано проверок: ${services.length}`);
+    schedulerLogger.debug(`Запланировано проверок: ${services.length}`);
   }
 
   private scheduleService(service: Service): void {
@@ -39,7 +39,7 @@ class Scheduler {
     if (service.type === 'ssl') {
       // Для SSL сервисов используем время check_at для ежедневной проверки
       cronExpression = this.generateCronExpressionForSSL(service);
-      schedulerLogger.info(`SSL сервис ${service.name}: проверка по расписанию ${cronExpression} (${service.check_at})`);
+      schedulerLogger.debug(`SSL сервис ${service.name}: проверка по расписанию ${cronExpression} (${service.check_at})`);
     } else {
       // Конвертируем интервал в секундах в cron-выражение
       // Например, каждые 30 секунд: */30 * * * * *
@@ -86,11 +86,11 @@ class Scheduler {
   }
 
   private async executeCheck(service: Service): Promise<void> {
-    schedulerLogger.info(`Проверка сервиса: ${service.name} (${service.address})`);
+    schedulerLogger.debug(`Проверка сервиса: ${service.name} (${service.address})`);
     try {
       const result = await checker.checkService(service);
       const statusEmoji = result.success ? '✅' : '❌';
-      schedulerLogger.info(`${statusEmoji} ${service.name}: ${result.status} (ошибок: ${result.failureCount})`);
+      schedulerLogger.debug(`${statusEmoji} ${service.name}: ${result.status} (ошибок: ${result.failureCount})`);
     } catch (err) {
       schedulerLogger.error(`Ошибка при проверке сервиса ${service.name}:`, (err as Error).message);
     }
@@ -112,7 +112,7 @@ class Scheduler {
   }
 
   private async reloadConfiguration(): Promise<void> {
-    schedulerLogger.info('Перезагрузка конфигурации...');
+    schedulerLogger.debug('Перезагрузка конфигурации...');
     await config.load();
     database.syncServices(config.getServices());
     this.scheduleAllServices();

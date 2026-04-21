@@ -2,7 +2,41 @@
  * Утилита для логирования с датой и временем
  */
 
+export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
+
 export class Logger {
+  private static currentLogLevel: LogLevel = 'info'; // уровень по умолчанию
+  
+  /**
+   * Установка уровня логирования
+   */
+  static setLogLevel(level: LogLevel): void {
+    this.currentLogLevel = level;
+  }
+  
+  /**
+   * Получение текущего уровня логирования
+   */
+  static getLogLevel(): LogLevel {
+    return this.currentLogLevel;
+  }
+  
+  /**
+   * Проверка, должен ли лог данного уровня быть записан
+   */
+  private static shouldLog(level: LogLevel): boolean {
+    const levelPriority: Record<LogLevel, number> = {
+      error: 0,
+      warn: 1,
+      info: 2,
+      debug: 3
+    };
+    
+    const currentPriority = levelPriority[this.currentLogLevel];
+    const messagePriority = levelPriority[level];
+    
+    return messagePriority <= currentPriority;
+  }
   /**
    * Форматирование даты с миллисекундами
    */
@@ -42,6 +76,7 @@ export class Logger {
    * Лог уровня info
    */
   static info(message: string, ...args: any[]): void {
+    if (!this.shouldLog('info')) return;
     console.log(Logger.formatLog('INFO', message, ...args));
   }
 
@@ -49,6 +84,7 @@ export class Logger {
    * Лог уровня warn
    */
   static warn(message: string, ...args: any[]): void {
+    if (!this.shouldLog('warn')) return;
     console.warn(Logger.formatLog('WARN', message, ...args));
   }
 
@@ -56,6 +92,7 @@ export class Logger {
    * Лог уровня error
    */
   static error(message: string, ...args: any[]): void {
+    if (!this.shouldLog('error')) return;
     console.error(Logger.formatLog('ERROR', message, ...args));
   }
 
@@ -63,7 +100,7 @@ export class Logger {
    * Лог уровня debug (только при включенном debug режиме)
    */
   static debug(message: string, ...args: any[]): void {
-    // Можно добавить проверку на уровень логирования из конфигурации
+    if (!this.shouldLog('debug')) return;
     console.debug(Logger.formatLog('DEBUG', message, ...args));
   }
 

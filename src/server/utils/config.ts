@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Settings, Service } from '../types';
-import { configLogger } from './logger';
+import Logger, { configLogger } from './logger';
 
 class ConfigLoader {
   private settings: Settings;
@@ -54,6 +54,8 @@ class ConfigLoader {
       }
 
       configLogger.info('Настройки загружены:', this.settings);
+      // Устанавливаем уровень логирования
+      Logger.setLogLevel(this.settings.logLevel);
     } catch (err) {
       configLogger.error('Ошибка загрузки settings.json:', (err as Error).message);
       // Используем настройки по умолчанию
@@ -86,6 +88,8 @@ class ConfigLoader {
         },
         notification_providers: []
       };
+      // Устанавливаем уровень логирования
+      Logger.setLogLevel(this.settings.logLevel);
       // Создаем файл с настройками по умолчанию
       await fs.writeFile(settingsPath, JSON.stringify(this.settings, null, 2));
     }
