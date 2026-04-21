@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-heartbeat"></i> TinyMon</h1>
+            <p class="subtitle">Мониторинг доступности сервисов</p>
+        </header>
+
+        <div class="stats-cards">
+            <div class="stat-card total">
+                <h3>Всего сервисов</h3>
+                <p class="stat-number"><%= total %></p>
+            </div>
+            <div class="stat-card ok">
+                <h3>OK</h3>
+                <p class="stat-number"><%= okCount %></p>
+            </div>
+            <div class="stat-card warning">
+                <h3>WARNING</h3>
+                <p class="stat-number"><%= warningCount %></p>
+            </div>
+            <div class="stat-card error">
+                <h3>ERROR</h3>
+                <p class="stat-number"><%= errorCount %></p>
+            </div>
+        </div>
+
+        <main class="main">
+            <div class="services-header">
+                <h2><i class="fas fa-server"></i> Состояние сервисов</h2>
+                <div class="last-update">
+                    Последнее обновление: <span id="last-update-time"><%= new Date().toLocaleTimeString() %></span>
+                    <button id="refresh-btn" class="refresh-btn"><i class="fas fa-sync-alt"></i> Обновить</button>
+                </div>
+            </div>
+
+            <div class="services-table-container">
+                <table class="services-table">
+                    <thead>
+                        <tr>
+                            <th>Сервис</th>
+                            <th>Тип</th>
+                            <th>Адрес</th>
+                            <th>Интервал</th>
+                            <th>Статус</th>
+                            <th>Неудачи</th>
+                            <th>Последняя проверка</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% services.forEach(service => { %>
+                        <tr class="service-row" data-service-id="<%= service.id %>">
+                            <td class="service-name">
+                                <i class="fas <%= service.type === 'http' ? 'fa-globe' : 'fa-network-wired' %>"></i>
+                                <%= service.name %>
+                            </td>
+                            <td class="service-type"><%= service.type.toUpperCase() %></td>
+                            <td class="service-address"><%= service.address %></td>
+                            <td class="service-interval"><%= service.interval %> сек</td>
+                            <td class="service-status">
+                                <span class="status-badge status-<%= service.status.toLowerCase() %>">
+                                    <%= service.status %>
+                                </span>
+                            </td>
+                            <td class="service-failures">
+                                <span class="failure-count"><%= service.failure_count %></span>
+                            </td>
+                            <td class="service-last-check">
+                                <% if (service.lastCheck) { %>
+                                    <%= new Date(service.lastCheck).toLocaleString() %>
+                                <% } else { %>
+                                    Никогда
+                                <% } %>
+                            </td>
+                            <td class="service-actions">
+                                <button class="action-btn check-btn" title="Проверить сейчас">
+                                    <i class="fas fa-bolt"></i>
+                                </button>
+                                <button class="action-btn history-btn" title="История проверок">
+                                    <i class="fas fa-history"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+                <% if (services.length === 0) { %>
+                <div class="no-services">
+                    <i class="fas fa-inbox"></i>
+                    <p>Нет настроенных сервисов для мониторинга.</p>
+                    <p>Добавьте файлы конфигурации в папку <code>settings.d</code></p>
+                </div>
+                <% } %>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>TinyMon &copy; <%= new Date().getFullYear() %> | Мониторинг IP/HTTP/HTTPS ресурсов</p>
+            <p class="version">Версия 1.0.0 | Node.js <%= process.version %></p>
+        </footer>
+    </div>
+
+    <!-- Модальное окно для истории проверок -->
+    <div id="history-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>История проверок</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="history-content">
+                    <!-- Контент будет загружен через JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

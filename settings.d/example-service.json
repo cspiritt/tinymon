@@ -1,0 +1,7 @@
+{
+  "name": "Google HTTP",
+  "type": "http",
+  "address": "https://www.google.com",
+  "interval": 30,
+  "timeout": 3000
+}

@@ -1,0 +1,7 @@
+{
+  "name": "Google TCP Ping",
+  "type": "ip",
+  "address": "google.com:80",
+  "interval": 60,
+  "timeout": 5000
+}

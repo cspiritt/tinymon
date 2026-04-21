@@ -1,0 +1,28 @@
+{
+  "bindAddress": "0.0.0.0",
+  "port": 3000,
+  "checkInterval": 60,
+  "timeout": 5000,
+  "retries": 3,
+  "logLevel": "info",
+  "database": {
+    "type": "sqlite",
+    "sqlite": {
+      "path": "./monitoring.db"
+    },
+    "postgres": {
+      "host": "localhost",
+      "port": 5432,
+      "database": "tinymon",
+      "user": "postgres",
+      "password": ""
+    },
+    "mysql": {
+      "host": "localhost",
+      "port": 3306,
+      "database": "tinymon",
+      "user": "root",
+      "password": ""
+    }
+  }
+}
