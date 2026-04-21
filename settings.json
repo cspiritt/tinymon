@@ -26,16 +26,13 @@
     }
   },
   "notification_providers": [
-  //  {
-  //    "id": "telegram-bot",
-  //    "type": "telegram",
-  //    "parameters": {
-  //     "token": "YOUR_TELEGRAM_BOT_TOKEN",
-  //      "webhook": {
-  //        "host": "0.0.0.0",
-  //        "port": 8443
-  //      }
-  //    }
-  //  }
+    {
+      "id": "telegram-bot",
+      "type": "telegram",
+      "parameters": {
+       "token": "xxxx",
+       "allowed_subscribers": [ 123241362 ]
+      }
+    }
   ]
 }
