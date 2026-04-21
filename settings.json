@@ -34,5 +34,11 @@
        "allowed_subscribers": [ 123241362 ]
       }
     }
+  ],
+  "users": [
+    {
+      "user": "admin",
+      "password": "$2b$10$9gHTLhIpshjG8RMpF5dmBOeW7svFFmonnkUmeGZQ.6jzCur1SYpIy"
+    }
   ]
 }

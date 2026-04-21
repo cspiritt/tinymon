@@ -72,6 +72,26 @@ class MonitoringUI {
         });
     }
 
+    /**
+     * Обёртка для fetch с обработкой ошибок аутентификации
+     */
+    private async apiFetch(url: string, options?: RequestInit): Promise<Response> {
+        try {
+            const response = await fetch(url, options);
+            
+            // Если получили 401, перенаправляем на страницу логина
+            if (response.status === 401) {
+                window.location.href = '/login';
+                throw new Error('Требуется аутентификация');
+            }
+            
+            return response;
+        } catch (error) {
+            console.error('Ошибка сети:', error);
+            throw error;
+        }
+    }
+
     public init(): void {
         this.setupEventListeners();
         this.setupGroupHandlers();
@@ -114,7 +134,7 @@ class MonitoringUI {
     // Обновление данных через API
     public async refreshData(silent: boolean = false): Promise<void> {
         try {
-            const response = await fetch('/api/status');
+            const response = await this.apiFetch('/api/status');
             const data = await response.json() as APIResponse<Service[]>;
 
             if (data.success && data.data) {
@@ -182,7 +202,7 @@ class MonitoringUI {
 
     private async loadServiceHistory(serviceId: string, serviceName: string): Promise<void> {
         try {
-            const response = await fetch(`/api/service/${serviceId}/checks?limit=20`);
+            const response = await this.apiFetch(`/api/service/${serviceId}/checks?limit=20`);
             const data = await response.json() as APIResponse<ChecksResponse>;
             console.log('History API response:', data);
 
@@ -256,7 +276,7 @@ class MonitoringUI {
 
     private async forceCheckService(serviceId: string, serviceName: string): Promise<void> {
         try {
-            const response = await fetch(`/api/service/${serviceId}/check`, {
+            const response = await this.apiFetch(`/api/service/${serviceId}/check`, {
                 method: 'POST'
             });
             const data = await response.json() as APIResponse<any>;

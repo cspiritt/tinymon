@@ -49,6 +49,7 @@ export interface Settings {
   logLevel: 'error' | 'warn' | 'info' | 'debug';
   database: DatabaseConfig;
   notification_providers?: NotificationProviderConfig[];
+  users?: User[];
 }
 
 export interface NotificationProviderConfig {
@@ -88,4 +89,21 @@ export interface SSLCertificateInfo {
   issuer: string;
   subject: string;
   days_until_expiry: number;
+}
+
+export interface User {
+  user: string;
+  password: string; // bcrypt hash
+}
+
+export interface SessionData {
+  userId: string;
+  token: string;
+  expires: number; // timestamp
+}
+
+export interface AuthResult {
+  success: boolean;
+  user?: string;
+  error?: string;
 }

@@ -14,7 +14,7 @@ const copyItems = [
   'models',
   'routes',
   'utils',
-  'views',
+  'src/server/views',
   'public',
   'settings.d'
 ];
@@ -108,9 +108,14 @@ async function build() {
     
     // Копируем файлы и папки
     for (const item of copyItems) {
-      const source = path.join(sourceDir, item);
-      const target = path.join(targetDir, item);
+      let source = path.join(sourceDir, item);
+      let target = path.join(targetDir, item);
       
+      // Специальная обработка для views, которые теперь в src/server/views
+      if (item === 'src/server/views') {
+        target = path.join(targetDir, 'views');
+      }
+
       if (await fs.pathExists(source)) {
         await copyFileOrDir(source, target);
       } else {

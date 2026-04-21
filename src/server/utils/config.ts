@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { Settings, Service } from '../types';
+import { Settings, Service, User } from '../types';
 import Logger, { configLogger } from './logger';
 
 class ConfigLoader {
@@ -53,7 +53,13 @@ class ConfigLoader {
         this.settings.notification_providers = [];
       }
 
+      // Устанавливаем users по умолчанию, если не указано
+      if (!this.settings.users) {
+        this.settings.users = [];
+      }
+
       configLogger.info('Настройки загружены:', this.settings);
+      configLogger.info(`Загружено пользователей: ${this.settings.users.length}`);
       // Устанавливаем уровень логирования
       Logger.setLogLevel(this.settings.logLevel);
     } catch (err) {
@@ -86,6 +92,7 @@ class ConfigLoader {
             password: ''
           }
         },
+        users: [],
         notification_providers: []
       };
       // Устанавливаем уровень логирования
@@ -163,6 +170,10 @@ class ConfigLoader {
 
   getSettings(): Settings {
     return this.settings;
+  }
+
+  getUsers(): User[] {
+    return this.settings.users || [];
   }
 
   getServices(): Service[] {

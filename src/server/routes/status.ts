@@ -54,6 +54,7 @@ function groupServices(services: any[]): ServiceGroup[] {
 router.get('/', async (req: Request, res: Response) => {
   try {
     const services = await database.getAllServices();
+    const user = (req as any).user;
 
     // Добавляем вычисляемый статус для каждого сервиса
     const servicesWithStatus = services.map(service => {
@@ -109,7 +110,8 @@ router.get('/', async (req: Request, res: Response) => {
       total: services.length,
       okCount: servicesWithStatus.filter(s => s.status === 'OK').length,
       warningCount: servicesWithStatus.filter(s => s.status === 'WARNING').length,
-      errorCount: servicesWithStatus.filter(s => s.status === 'ERROR').length
+      errorCount: servicesWithStatus.filter(s => s.status === 'ERROR').length,
+      user: user
     });
   } catch (err) {
     routesLogger.error('Ошибка при получении сервисов:', err);
