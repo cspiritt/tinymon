@@ -1,5 +1,6 @@
 import { DatabaseAdapter, UpdateServiceStatusResult } from '../database-adapter';
 import { Service, DatabaseConfig } from '../../types';
+import { dbLogger } from '../../utils/logger';
 
 interface MySQLModule {
   createPool(config: any): any;
@@ -39,7 +40,7 @@ export class MySQLAdapter extends DatabaseAdapter {
     const connection = await this.pool.getConnection();
     try {
       await this.createTablesWithConnection(connection);
-      console.log('MySQL база данных подключена');
+      dbLogger.info('MySQL база данных подключена');
     } finally {
       connection.release();
     }
@@ -164,7 +165,7 @@ export class MySQLAdapter extends DatabaseAdapter {
       }
 
       await connection.commit();
-      console.log(`MySQL: синхронизировано сервисов: ${services.length}`);
+      dbLogger.info(`MySQL: синхронизировано сервисов: ${services.length}`);
     } catch (err) {
       await connection.rollback();
       throw err;

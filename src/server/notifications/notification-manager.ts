@@ -3,6 +3,7 @@ import { NotificationProvider, NotificationMessage } from './notification-provid
 import { TelegramNotificationProvider } from './telegram-provider';
 import config from '../utils/config';
 import database from '../models/database';
+import { notificationLogger } from '../utils/logger';
 
 export class NotificationManager {
   private providers: Map<string, NotificationProvider> = new Map();
@@ -21,18 +22,18 @@ export class NotificationManager {
     const settings = config.getSettings();
     const providerConfigs = settings.notification_providers || [];
 
-    console.log(`Инициализация уведомлений: найдено ${providerConfigs.length} провайдеров`);
+    notificationLogger.info(`Инициализация уведомлений: найдено ${providerConfigs.length} провайдеров`);
 
     for (const providerConfig of providerConfigs) {
       try {
         await this.addProvider(providerConfig);
       } catch (err) {
-        console.error(`Ошибка инициализации провайдера ${providerConfig.id}:`, err);
+        notificationLogger.error(`Ошибка инициализации провайдера ${providerConfig.id}:`, err);
       }
     }
 
     this.isInitialized = true;
-    console.log('Менеджер уведомлений инициализирован');
+    notificationLogger.info('Менеджер уведомлений инициализирован');
   }
 
   /**
@@ -51,7 +52,7 @@ export class NotificationManager {
 
     await provider.initialize();
     this.providers.set(providerConfig.id, provider);
-    console.log(`Провайдер уведомлений ${providerConfig.id} (${providerConfig.type}) добавлен`);
+    notificationLogger.info(`Провайдер уведомлений ${providerConfig.id} (${providerConfig.type}) добавлен`);
   }
 
   /**
@@ -62,11 +63,11 @@ export class NotificationManager {
       return;
     }
 
-    console.log(`Отправка уведомления о изменении статуса сервиса ${message.serviceName}`);
+    notificationLogger.info(`Отправка уведомления о изменении статуса сервиса ${message.serviceName}`);
 
     const promises = Array.from(this.providers.values()).map(provider =>
       provider.sendNotification(message).catch(err => {
-        console.error(`Ошибка отправки уведомления через провайдер ${provider.constructor.name}:`, err);
+        notificationLogger.error(`Ошибка отправки уведомления через провайдер ${provider.constructor.name}:`, err);
       })
     );
 
@@ -124,12 +125,12 @@ export class NotificationManager {
 
       // Отправляем уведомление асинхронно (не ждем завершения)
       this.notifyServiceStatusChange(message).catch(err => {
-        console.error('Ошибка при отправке уведомления:', err);
+        notificationLogger.error('Ошибка при отправке уведомления:', err);
       });
 
-      console.log(`Статус сервиса ${serviceName} изменился: ${previousNotifiedStatus} -> ${currentStatus}, отправлено уведомление`);
+      notificationLogger.info(`Статус сервиса ${serviceName} изменился: ${previousNotifiedStatus} -> ${currentStatus}, отправлено уведомление`);
     } catch (err) {
-      console.error('Ошибка при проверке изменения статуса:', err);
+      notificationLogger.error('Ошибка при проверке изменения статуса:', err);
     }
   }
 
@@ -137,21 +138,21 @@ export class NotificationManager {
    * Остановка всех провайдеров
    */
   async shutdown(): Promise<void> {
-    console.log('Остановка менеджера уведомлений...');
+    notificationLogger.info('Остановка менеджера уведомлений...');
     
     for (const provider of this.providers.values()) {
       if ('shutdown' in provider && typeof (provider as any).shutdown === 'function') {
         try {
           await (provider as any).shutdown();
         } catch (err) {
-          console.error('Ошибка остановки провайдера:', err);
+          notificationLogger.error('Ошибка остановки провайдера:', err);
         }
       }
     }
     
     this.providers.clear();
     this.isInitialized = false;
-    console.log('Менеджер уведомлений остановлен');
+    notificationLogger.info('Менеджер уведомлений остановлен');
   }
 }
 

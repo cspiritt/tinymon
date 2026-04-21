@@ -3,6 +3,7 @@ import database from '../models/database';
 import config from '../utils/config';
 import checker from '../utils/checker';
 import { ServiceGroup } from '../types';
+import { routesLogger } from '../utils/logger';
 
 const router: Router = express.Router();
 
@@ -111,7 +112,7 @@ router.get('/', async (req: Request, res: Response) => {
       errorCount: servicesWithStatus.filter(s => s.status === 'ERROR').length
     });
   } catch (err) {
-    console.error('Ошибка при получении сервисов:', err);
+    routesLogger.error('Ошибка при получении сервисов:', err);
     res.status(500).render('error', { message: 'Ошибка при получении данных' });
   }
 });
@@ -183,7 +184,7 @@ router.get('/api/status', async (req: Request, res: Response) => {
       timestamp: Date.now()
     });
   } catch (err) {
-    console.error('Ошибка API статуса:', err);
+    routesLogger.error('Ошибка API статуса:', err);
     res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
   }
 });
@@ -217,7 +218,7 @@ router.get('/api/service/:id/checks', async (req: Request, res: Response) => {
       }
     });
   } catch (err) {
-    console.error('Ошибка при получении истории проверок:', err);
+    routesLogger.error('Ошибка при получении истории проверок:', err);
     return res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
   }
 });
@@ -257,7 +258,7 @@ router.get('/api/stats', async (req: Request, res: Response) => {
       stats: stats
     });
   } catch (err) {
-    console.error('Ошибка при получении статистики:', err);
+    routesLogger.error('Ошибка при получении статистики:', err);
     res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
   }
 });

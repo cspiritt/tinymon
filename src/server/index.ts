@@ -8,6 +8,7 @@ import database from './models/database';
 import scheduler from './utils/scheduler';
 import notificationManager from './notifications/notification-manager';
 import statusRoutes from './routes/status';
+import { mainLogger } from './utils/logger';
 
 class MonitoringServer {
   private app: express.Application;
@@ -38,16 +39,16 @@ class MonitoringServer {
     // Определяем пути в зависимости от окружения
     const isProduction = process.env.NODE_ENV === 'production' || __dirname.includes('/dist/');
     const basePath = isProduction ? __dirname : process.cwd();
-    console.log('Environment:', isProduction ? 'production' : 'development');
-    console.log('Base path:', basePath);
-    
+    mainLogger.info('Environment:', isProduction ? 'production' : 'development');
+    mainLogger.info('Base path:', basePath);
+
     const publicPath = path.join(basePath, 'public');
     const viewsPath = path.join(basePath, 'views');
-    
-    console.log('Serving static files from:', publicPath);
-    console.log('Directory exists?', require('fs').existsSync(publicPath));
-    console.log('Views path:', viewsPath);
-    console.log('Views exists?', require('fs').existsSync(viewsPath));
+
+    mainLogger.info('Serving static files from:', publicPath);
+    mainLogger.info('Directory exists?', require('fs').existsSync(publicPath));
+    mainLogger.info('Views path:', viewsPath);
+    mainLogger.info('Views exists?', require('fs').existsSync(viewsPath));
     
     this.app.use(express.static(publicPath));
 
@@ -61,13 +62,13 @@ class MonitoringServer {
 
     // Обработка ошибок 404
     this.app.use((req, res) => {
-      console.log('404 Not Found:', req.method, req.url);
+      mainLogger.warn('404 Not Found:', req.method, req.url);
       res.status(404).json({ error: 'Не найдено' });
     });
 
     // Обработка ошибок
     this.app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-      console.error('Ошибка сервера:', err.stack);
+      mainLogger.error('Ошибка сервера:', err.stack);
       res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     });
   }
@@ -78,8 +79,8 @@ class MonitoringServer {
     const bindAddress = settings.bindAddress;
 
     this.server = this.app.listen(port, bindAddress, () => {
-      console.log(`Сервер мониторинга запущен на http://${bindAddress}:${port}`);
-      console.log('Используемые настройки:', settings);
+      mainLogger.info(`Сервер мониторинга запущен на http://${bindAddress}:${port}`);
+      mainLogger.info('Используемые настройки:', settings);
     });
 
     // Запуск планировщика проверок
@@ -91,15 +92,15 @@ class MonitoringServer {
   }
 
   stop(): void {
-    console.log('Остановка сервера мониторинга...');
+    mainLogger.info('Остановка сервера мониторинга...');
     scheduler.stopAll();
     notificationManager.shutdown().catch(err => {
-      console.error('Ошибка остановки менеджера уведомлений:', err);
+      mainLogger.error('Ошибка остановки менеджера уведомлений:', err);
     });
     database.close();
     if (this.server) {
       this.server.close(() => {
-        console.log('Сервер остановлен');
+        mainLogger.info('Сервер остановлен');
         process.exit(0);
       });
     } else {
@@ -115,7 +116,7 @@ class MonitoringServer {
     await server.initialize();
     server.start();
   } catch (err) {
-    console.error('Не удалось запустить сервер:', err);
+    mainLogger.error('Не удалось запустить сервер:', err);
     process.exit(1);
   }
 })();

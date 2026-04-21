@@ -4,6 +4,7 @@ import { checkIpAddress } from './tcp-ping';
 import { checkSSLCertificate } from './ssl-checker';
 import notificationManager from '../notifications/notification-manager';
 import { Service, CheckResult } from '../types';
+import { checkerLogger } from './logger';
 
 class ServiceChecker {
   private timeout: number;
@@ -56,7 +57,7 @@ class ServiceChecker {
           status,
           errorMessage || undefined,
           sslResult.ssl_days_until_expiry
-        ).catch(err => console.error('Ошибка отправки уведомления:', err));
+        ).catch(err => checkerLogger.error('Ошибка отправки уведомления:', err));
 
         return {
           ...sslResult,
@@ -88,7 +89,7 @@ class ServiceChecker {
       service.name,
       status,
       errorMessage || undefined
-    ).catch(err => console.error('Ошибка отправки уведомления:', err));
+    ).catch(err => checkerLogger.error('Ошибка отправки уведомления:', err));
 
     return {
       serviceId: service.id,

@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Settings, Service } from '../types';
+import { configLogger } from './logger';
 
 class ConfigLoader {
   private settings: Settings;
@@ -24,7 +25,7 @@ class ConfigLoader {
 
       // Обратная совместимость: если database - строка, преобразуем в новую структуру
       if (typeof this.settings.database === 'string') {
-        console.log('Обновление структуры database для обратной совместимости');
+        configLogger.info('Обновление структуры database для обратной совместимости');
         this.settings.database = {
           type: 'sqlite',
           sqlite: {
@@ -52,9 +53,9 @@ class ConfigLoader {
         this.settings.notification_providers = [];
       }
 
-      console.log('Настройки загружены:', this.settings);
+      configLogger.info('Настройки загружены:', this.settings);
     } catch (err) {
-      console.error('Ошибка загрузки settings.json:', (err as Error).message);
+      configLogger.error('Ошибка загрузки settings.json:', (err as Error).message);
       // Используем настройки по умолчанию
       this.settings = {
         bindAddress: '0.0.0.0',
@@ -103,7 +104,7 @@ class ConfigLoader {
           const service = JSON.parse(data);
           // Валидация обязательных полей
           if (!service.name || !service.type || !service.address) {
-            console.warn(`Пропущен некорректный сервис в ${file}: отсутствуют обязательные поля`);
+            configLogger.warn(`Пропущен некорректный сервис в ${file}: отсутствуют обязательные поля`);
             continue;
           }
           
@@ -123,16 +124,16 @@ class ConfigLoader {
             }
             // Проверяем формат времени
             if (service.check_at && !/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(service.check_at)) {
-              console.warn(`Некорректный формат check_at в ${file}: ${service.check_at}, используем 00:00`);
+              configLogger.warn(`Некорректный формат check_at в ${file}: ${service.check_at}, используем 00:00`);
               service.check_at = '00:00';
             }
             // Адрес должен начинаться с https://
             if (!service.address.startsWith('https://')) {
-              console.warn(`Адрес SSL сервиса в ${file} должен начинаться с https://: ${service.address}`);
+              configLogger.warn(`Адрес SSL сервиса в ${file} должен начинаться с https://: ${service.address}`);
             }
           } else if (!service.interval) {
             // Для других типов interval обязателен
-            console.warn(`Пропущен некорректный сервис в ${file}: отсутствует interval`);
+            configLogger.warn(`Пропущен некорректный сервис в ${file}: отсутствует interval`);
             continue;
           }
           
@@ -140,18 +141,18 @@ class ConfigLoader {
           service.id = path.basename(file, '.json');
           this.services.push(service as Service);
         } catch (err) {
-          console.error(`Ошибка чтения файла ${file}:`, (err as Error).message);
+          configLogger.error(`Ошибка чтения файла ${file}:`, (err as Error).message);
         }
       }
-      console.log(`Загружено сервисов: ${this.services.length}`);
+      configLogger.info(`Загружено сервисов: ${this.services.length}`);
     } catch (err) {
       const error = err as NodeJS.ErrnoException;
       // Если папка не существует, создаем её
       if (error.code === 'ENOENT') {
         await fs.mkdir(servicesDir, { recursive: true });
-        console.log('Создана папка settings.d');
+        configLogger.info('Создана папка settings.d');
       } else {
-        console.error('Ошибка чтения папки services:', error.message);
+        configLogger.error('Ошибка чтения папки services:', error.message);
       }
     }
   }

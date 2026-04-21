@@ -1,5 +1,6 @@
 import { DatabaseAdapter, UpdateServiceStatusResult } from '../database-adapter';
 import { Service, DatabaseConfig } from '../../types';
+import { dbLogger } from '../../utils/logger';
 
 interface SQLiteDatabase {
   new (path: string): any;
@@ -32,7 +33,7 @@ export class SQLiteAdapter extends DatabaseAdapter {
     this.db.pragma('journal_mode = WAL');
 
     await this.createTables();
-    console.log(`SQLite база данных подключена: ${dbPath}`);
+    dbLogger.info(`SQLite база данных подключена: ${dbPath}`);
   }
 
   async createTables(): Promise<void> {
@@ -93,7 +94,7 @@ export class SQLiteAdapter extends DatabaseAdapter {
     // Миграция для существующих таблиц (добавить колонку service_group если отсутствует)
     try {
       this.db.exec(`ALTER TABLE services ADD COLUMN service_group TEXT DEFAULT ''`);
-      console.log('Миграция: добавлена колонка service_group');
+      dbLogger.info('Миграция: добавлена колонка service_group');
     } catch (err) {
       // Колонка уже существует, игнорируем ошибку
     }
@@ -101,35 +102,35 @@ export class SQLiteAdapter extends DatabaseAdapter {
     // Миграция для SSL полей
     try {
       this.db.exec(`ALTER TABLE services ADD COLUMN warn_before INTEGER DEFAULT NULL`);
-      console.log('Миграция: добавлена колонка warn_before');
+      dbLogger.info('Миграция: добавлена колонка warn_before');
     } catch (err) {
       // Колонка уже существует, игнорируем ошибку
     }
     
     try {
       this.db.exec(`ALTER TABLE services ADD COLUMN check_at TEXT DEFAULT NULL`);
-      console.log('Миграция: добавлена колонка check_at');
+      dbLogger.info('Миграция: добавлена колонка check_at');
     } catch (err) {
       // Колонка уже существует, игнорируем ошибку
     }
     
     try {
       this.db.exec(`ALTER TABLE services ADD COLUMN ssl_days_until_expiry INTEGER DEFAULT NULL`);
-      console.log('Миграция: добавлена колонка ssl_days_until_expiry');
+      dbLogger.info('Миграция: добавлена колонка ssl_days_until_expiry');
     } catch (err) {
       // Колонка уже существует, игнорируем ошибку
     }
     
     try {
       this.db.exec(`ALTER TABLE services ADD COLUMN ssl_expiry_date INTEGER DEFAULT NULL`);
-      console.log('Миграция: добавлена колонка ssl_expiry_date');
+      dbLogger.info('Миграция: добавлена колонка ssl_expiry_date');
     } catch (err) {
       // Колонка уже существует, игнорируем ошибку
     }
     
     try {
       this.db.exec(`ALTER TABLE services ADD COLUMN last_notified_status TEXT DEFAULT 'unknown'`);
-      console.log('Миграция: добавлена колонка last_notified_status');
+      dbLogger.info('Миграция: добавлена колонка last_notified_status');
     } catch (err) {
       // Колонка уже существует, игнорируем ошибку
     }
@@ -171,7 +172,7 @@ export class SQLiteAdapter extends DatabaseAdapter {
     });
 
     transaction(services);
-    console.log(`SQLite: синхронизировано сервисов: ${services.length}`);
+    dbLogger.info(`SQLite: синхронизировано сервисов: ${services.length}`);
   }
 
   async getAllServices(): Promise<any[]> {

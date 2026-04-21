@@ -1,5 +1,6 @@
 import { DatabaseAdapter, UpdateServiceStatusResult } from '../database-adapter';
 import { Service, DatabaseConfig } from '../../types';
+import { dbLogger } from '../../utils/logger';
 
 interface PGModule {
   Pool: new (config: any) => any;
@@ -39,7 +40,7 @@ export class PostgresAdapter extends DatabaseAdapter {
     const client = await this.pool.connect();
     try {
       await this.createTables();
-      console.log('PostgreSQL база данных подключена');
+      dbLogger.info('PostgreSQL база данных подключена');
     } finally {
       client.release();
     }
@@ -163,7 +164,7 @@ export class PostgresAdapter extends DatabaseAdapter {
       }
 
       await client.query('COMMIT');
-      console.log(`PostgreSQL: синхронизировано сервисов: ${services.length}`);
+      dbLogger.info(`PostgreSQL: синхронизировано сервисов: ${services.length}`);
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;

@@ -2,6 +2,7 @@ import DatabaseFactory from './database-factory';
 import config from '../utils/config';
 import { Service } from '../types';
 import { DatabaseAdapter, UpdateServiceStatusResult } from './database-adapter';
+import { dbLogger } from '../utils/logger';
 
 class DatabaseManager {
   private adapter: DatabaseAdapter | null = null;
@@ -13,9 +14,9 @@ class DatabaseManager {
 
     try {
       this.adapter = await DatabaseFactory.createAdapter();
-      console.log(`База данных подключена (тип: ${config.getSettings().database.type})`);
+      dbLogger.info(`База данных подключена (тип: ${config.getSettings().database.type})`);
     } catch (err) {
-      console.error('Ошибка подключения к базе данных:', (err as Error).message);
+      dbLogger.error('Ошибка подключения к базе данных:', (err as Error).message);
       throw err;
     }
   }
