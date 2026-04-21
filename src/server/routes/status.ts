@@ -57,12 +57,39 @@ router.get('/', async (req: Request, res: Response) => {
     // Добавляем вычисляемый статус для каждого сервиса
     const servicesWithStatus = services.map(service => {
       let status = 'unknown';
-      if (service.failure_count === 0) {
-        status = 'OK';
-      } else if (service.failure_count < 3) {
-        status = 'WARNING';
+      
+      // Для SSL сервисов учитываем дни до истечения сертификата
+      if (service.type === 'ssl') {
+        // Если есть ошибки соединения, используем стандартную логику
+        if (service.failure_count > 0) {
+          if (service.failure_count < 3) {
+            status = 'WARNING';
+          } else {
+            status = 'ERROR';
+          }
+        } else if (service.ssl_days_until_expiry !== null) {
+          // Определяем статус на основе дней до истечения
+          const warnBefore = service.warn_before || 30;
+          if (service.ssl_days_until_expiry <= 0) {
+            status = 'ERROR';
+          } else if (service.ssl_days_until_expiry <= warnBefore) {
+            status = 'WARNING';
+          } else {
+            status = 'OK';
+          }
+        } else {
+          // Сертификат ещё не проверялся
+          status = 'unknown';
+        }
       } else {
-        status = 'ERROR';
+        // Стандартная логика для HTTP/IP сервисов
+        if (service.failure_count === 0) {
+          status = 'OK';
+        } else if (service.failure_count < 3) {
+          status = 'WARNING';
+        } else {
+          status = 'ERROR';
+        }
       }
 
       return {
@@ -96,12 +123,39 @@ router.get('/api/status', async (req: Request, res: Response) => {
 
     const result = services.map(service => {
       let status = 'unknown';
-      if (service.failure_count === 0) {
-        status = 'OK';
-      } else if (service.failure_count < 3) {
-        status = 'WARNING';
+      
+      // Для SSL сервисов учитываем дни до истечения сертификата
+      if (service.type === 'ssl') {
+        // Если есть ошибки соединения, используем стандартную логику
+        if (service.failure_count > 0) {
+          if (service.failure_count < 3) {
+            status = 'WARNING';
+          } else {
+            status = 'ERROR';
+          }
+        } else if (service.ssl_days_until_expiry !== null) {
+          // Определяем статус на основе дней до истечения
+          const warnBefore = service.warn_before || 30;
+          if (service.ssl_days_until_expiry <= 0) {
+            status = 'ERROR';
+          } else if (service.ssl_days_until_expiry <= warnBefore) {
+            status = 'WARNING';
+          } else {
+            status = 'OK';
+          }
+        } else {
+          // Сертификат ещё не проверялся
+          status = 'unknown';
+        }
       } else {
-        status = 'ERROR';
+        // Стандартная логика для HTTP/IP сервисов
+        if (service.failure_count === 0) {
+          status = 'OK';
+        } else if (service.failure_count < 3) {
+          status = 'WARNING';
+        } else {
+          status = 'ERROR';
+        }
       }
 
       return {
@@ -115,7 +169,11 @@ router.get('/api/status', async (req: Request, res: Response) => {
         lastCheck: service.last_check,
         lastStatus: service.last_status,
         createdAt: service.created_at,
-        group: service.group
+        group: service.group,
+        warn_before: service.warn_before,
+        check_at: service.check_at,
+        ssl_days_until_expiry: service.ssl_days_until_expiry,
+        ssl_expiry_date: service.ssl_expiry_date
       };
     });
 

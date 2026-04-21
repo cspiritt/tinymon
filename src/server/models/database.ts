@@ -45,12 +45,16 @@ class DatabaseManager {
     serviceId: string,
     success: boolean,
     responseTime: number | null = null,
-    errorMessage: string | null = null
+    errorMessage: string | null = null,
+    options?: {
+      ssl_days_until_expiry?: number;
+      ssl_expiry_date?: Date;
+    }
   ): Promise<UpdateServiceStatusResult> {
     if (!this.adapter) {
       await this.connect();
     }
-    return this.adapter!.updateServiceStatus(serviceId, success, responseTime, errorMessage);
+    return this.adapter!.updateServiceStatus(serviceId, success, responseTime, errorMessage, options);
   }
 
   async getServiceChecks(serviceId: string, limit: number = 10): Promise<any[]> {

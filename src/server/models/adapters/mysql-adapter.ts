@@ -60,7 +60,7 @@ export class MySQLAdapter extends DatabaseAdapter {
       CREATE TABLE IF NOT EXISTS services (
         id VARCHAR(255) PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
-        type ENUM('ip', 'http') NOT NULL,
+        type ENUM('ip', 'http', 'ssl') NOT NULL,
         address TEXT NOT NULL,
         interval INT NOT NULL,
         timeout INT DEFAULT 5000,
@@ -68,13 +68,34 @@ export class MySQLAdapter extends DatabaseAdapter {
         last_status VARCHAR(50) DEFAULT 'unknown',
         last_check BIGINT DEFAULT 0,
         created_at BIGINT DEFAULT UNIX_TIMESTAMP(),
-        service_group VARCHAR(255) DEFAULT ''
+        service_group VARCHAR(255) DEFAULT '',
+        warn_before INT DEFAULT NULL,
+        check_at VARCHAR(10) DEFAULT NULL,
+        ssl_days_until_expiry INT DEFAULT NULL,
+        ssl_expiry_date BIGINT DEFAULT NULL
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
     
     // Миграция: добавить колонку service_group если отсутствует
     await connection.query(`
       ALTER TABLE services ADD COLUMN IF NOT EXISTS service_group VARCHAR(255) DEFAULT ''
+    `);
+    
+    // Миграция для SSL полей
+    await connection.query(`
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS warn_before INT DEFAULT NULL
+    `);
+    
+    await connection.query(`
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS check_at VARCHAR(10) DEFAULT NULL
+    `);
+    
+    await connection.query(`
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS ssl_days_until_expiry INT DEFAULT NULL
+    `);
+    
+    await connection.query(`
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS ssl_expiry_date BIGINT DEFAULT NULL
     `);
 
     // Таблица результатов проверок
@@ -100,15 +121,17 @@ export class MySQLAdapter extends DatabaseAdapter {
 
       for (const service of services) {
         await connection.query(`
-          INSERT INTO services (id, name, type, address, interval, timeout, service_group)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO services (id, name, type, address, interval, timeout, service_group, warn_before, check_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
             name = VALUES(name),
             type = VALUES(type),
             address = VALUES(address),
             interval = VALUES(interval),
             timeout = VALUES(timeout),
-            service_group = VALUES(service_group)
+            service_group = VALUES(service_group),
+            warn_before = VALUES(warn_before),
+            check_at = VALUES(check_at)
         `, [
           service.id,
           service.name,
@@ -116,7 +139,9 @@ export class MySQLAdapter extends DatabaseAdapter {
           service.address,
           service.interval,
           service.timeout || 5000,
-          service.group || ''
+          service.group || '',
+          service.warn_before !== undefined ? service.warn_before : null,
+          service.check_at || null
         ]);
       }
 
@@ -154,7 +179,11 @@ export class MySQLAdapter extends DatabaseAdapter {
     serviceId: string,
     success: boolean,
     responseTime: number | null = null,
-    errorMessage: string | null = null
+    errorMessage: string | null = null,
+    options?: {
+      ssl_days_until_expiry?: number;
+      ssl_expiry_date?: Date;
+    }
   ): Promise<UpdateServiceStatusResult> {
     const connection = await this.pool.getConnection();
     try {
@@ -183,12 +212,17 @@ export class MySQLAdapter extends DatabaseAdapter {
         lastStatus = 'failure';
       }
 
+      // Подготавливаем значения SSL полей
+      const sslDaysUntilExpiry = options?.ssl_days_until_expiry !== undefined ? options.ssl_days_until_expiry : null;
+      const sslExpiryDate = options?.ssl_expiry_date ? Math.floor(options.ssl_expiry_date.getTime() / 1000) : null;
+      
       // Обновляем сервис
       await connection.query(`
         UPDATE services
-        SET failure_count = ?, last_status = ?, last_check = UNIX_TIMESTAMP()
+        SET failure_count = ?, last_status = ?, last_check = UNIX_TIMESTAMP(),
+            ssl_days_until_expiry = ?, ssl_expiry_date = ?
         WHERE id = ?
-      `, [failureCount, lastStatus, serviceId]);
+      `, [failureCount, lastStatus, sslDaysUntilExpiry, sslExpiryDate, serviceId]);
 
       // Записываем результат проверки
       await connection.query(`

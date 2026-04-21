@@ -1,6 +1,7 @@
 import config from './config';
 import database from '../models/database';
 import { checkIpAddress } from './tcp-ping';
+import { checkSSLCertificate } from './ssl-checker';
 import { Service, CheckResult } from '../types';
 
 class ServiceChecker {
@@ -19,13 +20,39 @@ class ServiceChecker {
     try {
       if (service.type === 'http') {
         await this.checkHttp(service);
+        responseTime = Date.now() - startTime;
+        success = true;
       } else if (service.type === 'ip') {
         await this.checkIp(service);
+        responseTime = Date.now() - startTime;
+        success = true;
+      } else if (service.type === 'ssl') {
+        // SSL проверка возвращает готовый CheckResult
+        const sslResult = await checkSSLCertificate(service);
+        responseTime = sslResult.responseTime;
+        success = sslResult.success;
+        errorMessage = sslResult.errorMessage;
+        
+        // Обновляем статус в базе данных с SSL полями
+        const result = await database.updateServiceStatus(
+          service.id,
+          success,
+          responseTime,
+          errorMessage,
+          {
+            ssl_days_until_expiry: sslResult.ssl_days_until_expiry,
+            ssl_expiry_date: sslResult.ssl_expiry_date
+          }
+        );
+        
+        return {
+          ...sslResult,
+          failureCount: result ? result.failureCount : 0,
+          status: sslResult.status
+        };
       } else {
         throw new Error(`Неизвестный тип сервиса: ${service.type}`);
       }
-      responseTime = Date.now() - startTime;
-      success = true;
     } catch (err) {
       errorMessage = (err as Error).message;
       success = false;

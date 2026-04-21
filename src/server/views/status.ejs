@@ -89,7 +89,7 @@
                                     <% group.services.forEach(service => { %>
                                     <tr class="service-row" data-service-id="<%= service.id %>">
                                         <td class="service-name">
-                                            <i class="fas <%= service.type === 'http' ? 'fa-globe' : 'fa-network-wired' %>"></i>
+                                            <i class="fas <%= service.type === 'http' ? 'fa-globe' : service.type === 'ssl' ? 'fa-lock' : 'fa-network-wired' %>"></i>
                                             <%= service.name %>
                                         </td>
                                         <td class="service-type"><%= service.type.toUpperCase() %></td>
@@ -98,6 +98,13 @@
                                         <td class="service-status">
                                             <span class="status-badge status-<%= service.status.toLowerCase() %>">
                                                 <%= service.status %>
+                                                <% if (service.type === 'ssl' && service.ssl_days_until_expiry !== null) { %>
+                                                    <% if (service.ssl_days_until_expiry <= 0) { %>
+                                                        (<%= Math.abs(service.ssl_days_until_expiry) %> дн. назад)
+                                                    <% } else { %>
+                                                        (<%= service.ssl_days_until_expiry %> дн.)
+                                                    <% } %>
+                                                <% } %>
                                             </span>
                                         </td>
                                         <td class="service-failures">

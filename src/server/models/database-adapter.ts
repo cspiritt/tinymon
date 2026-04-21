@@ -51,13 +51,18 @@ export abstract class DatabaseAdapter {
    * @param success - успешность проверки
    * @param responseTime - время ответа в мс
    * @param errorMessage - сообщение об ошибке
+   * @param options - дополнительные опции (для SSL)
    * @returns объект с failureCount и lastStatus
    */
   abstract updateServiceStatus(
     serviceId: string,
     success: boolean,
     responseTime: number | null,
-    errorMessage: string | null
+    errorMessage: string | null,
+    options?: {
+      ssl_days_until_expiry?: number;
+      ssl_expiry_date?: Date;
+    }
   ): Promise<UpdateServiceStatusResult>;
 
   /**

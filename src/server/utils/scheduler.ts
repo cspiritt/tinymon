@@ -33,17 +33,25 @@ class Scheduler {
   }
 
   private scheduleService(service: Service): void {
-    // Конвертируем интервал в секундах в cron-выражение
-    // Например, каждые 30 секунд: */30 * * * * *
-    // Но node-cron поддерживает секунды (шесть полей)
-    const interval = service.interval;
-    if (interval < 10) {
-      console.warn(`Слишком маленький интервал для сервиса ${service.name}: ${interval} секунд. Минимум 10 секунд.`);
-      return;
-    }
+    let cronExpression: string;
+    
+    if (service.type === 'ssl') {
+      // Для SSL сервисов используем время check_at для ежедневной проверки
+      cronExpression = this.generateCronExpressionForSSL(service);
+      console.log(`SSL сервис ${service.name}: проверка по расписанию ${cronExpression} (${service.check_at})`);
+    } else {
+      // Конвертируем интервал в секундах в cron-выражение
+      // Например, каждые 30 секунд: */30 * * * * *
+      // Но node-cron поддерживает секунды (шесть полей)
+      const interval = service.interval;
+      if (interval < 10) {
+        console.warn(`Слишком маленький интервал для сервиса ${service.name}: ${interval} секунд. Минимум 10 секунд.`);
+        return;
+      }
 
-    // Создаем cron-выражение: каждые N секунд
-    const cronExpression = `*/${interval} * * * * *`;
+      // Создаем cron-выражение: каждые N секунд
+      cronExpression = `*/${interval} * * * * *`;
+    }
 
     const job = cron.schedule(cronExpression, async () => {
       await this.executeCheck(service);
@@ -57,6 +65,23 @@ class Scheduler {
     setTimeout(() => {
       this.executeCheck(service);
     }, 1000);
+  }
+  
+  private generateCronExpressionForSSL(service: Service): string {
+    // Формат check_at: "HH:MM", по умолчанию "00:00"
+    const checkAt = service.check_at || '00:00';
+    const [hourStr, minuteStr] = checkAt.split(':');
+    const hour = parseInt(hourStr, 10);
+    const minute = parseInt(minuteStr, 10);
+    
+    // Проверяем валидность
+    if (isNaN(hour) || hour < 0 || hour > 23 || isNaN(minute) || minute < 0 || minute > 59) {
+      console.warn(`Некорректное время check_at для SSL сервиса ${service.name}: ${checkAt}, используем 00:00`);
+      return '0 0 * * *';
+    }
+    
+    // Cron-выражение: minute hour * * * (пять полей, без секунд)
+    return `${minute} ${hour} * * *`;
   }
 
   private async executeCheck(service: Service): Promise<void> {

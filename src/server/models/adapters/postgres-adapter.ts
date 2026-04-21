@@ -53,7 +53,7 @@ export class PostgresAdapter extends DatabaseAdapter {
         CREATE TABLE IF NOT EXISTS services (
           id TEXT PRIMARY KEY,
           name TEXT NOT NULL,
-          type TEXT NOT NULL CHECK (type IN ('ip', 'http')),
+          type TEXT NOT NULL CHECK (type IN ('ip', 'http', 'ssl')),
           address TEXT NOT NULL,
           interval INTEGER NOT NULL,
           timeout INTEGER DEFAULT 5000,
@@ -61,13 +61,34 @@ export class PostgresAdapter extends DatabaseAdapter {
           last_status TEXT DEFAULT 'unknown',
           last_check BIGINT DEFAULT 0,
           created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()),
-          service_group TEXT DEFAULT ''
+          service_group TEXT DEFAULT '',
+          warn_before INTEGER DEFAULT NULL,
+          check_at TEXT DEFAULT NULL,
+          ssl_days_until_expiry INTEGER DEFAULT NULL,
+          ssl_expiry_date BIGINT DEFAULT NULL
         )
       `);
       
       // Миграция: добавить колонку service_group если отсутствует
       await client.query(`
         ALTER TABLE services ADD COLUMN IF NOT EXISTS service_group TEXT DEFAULT ''
+      `);
+      
+      // Миграция для SSL полей
+      await client.query(`
+        ALTER TABLE services ADD COLUMN IF NOT EXISTS warn_before INTEGER DEFAULT NULL
+      `);
+      
+      await client.query(`
+        ALTER TABLE services ADD COLUMN IF NOT EXISTS check_at TEXT DEFAULT NULL
+      `);
+      
+      await client.query(`
+        ALTER TABLE services ADD COLUMN IF NOT EXISTS ssl_days_until_expiry INTEGER DEFAULT NULL
+      `);
+      
+      await client.query(`
+        ALTER TABLE services ADD COLUMN IF NOT EXISTS ssl_expiry_date BIGINT DEFAULT NULL
       `);
 
       // Таблица результатов проверок
@@ -99,15 +120,17 @@ export class PostgresAdapter extends DatabaseAdapter {
 
       for (const service of services) {
         await client.query(`
-          INSERT INTO services (id, name, type, address, interval, timeout, service_group)
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          INSERT INTO services (id, name, type, address, interval, timeout, service_group, warn_before, check_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
           ON CONFLICT (id) DO UPDATE SET
             name = EXCLUDED.name,
             type = EXCLUDED.type,
             address = EXCLUDED.address,
             interval = EXCLUDED.interval,
             timeout = EXCLUDED.timeout,
-            service_group = EXCLUDED.service_group
+            service_group = EXCLUDED.service_group,
+            warn_before = EXCLUDED.warn_before,
+            check_at = EXCLUDED.check_at
         `, [
           service.id,
           service.name,
@@ -115,7 +138,9 @@ export class PostgresAdapter extends DatabaseAdapter {
           service.address,
           service.interval,
           service.timeout || 5000,
-          service.group || ''
+          service.group || '',
+          service.warn_before !== undefined ? service.warn_before : null,
+          service.check_at || null
         ]);
       }
 
@@ -153,7 +178,11 @@ export class PostgresAdapter extends DatabaseAdapter {
     serviceId: string,
     success: boolean,
     responseTime: number | null = null,
-    errorMessage: string | null = null
+    errorMessage: string | null = null,
+    options?: {
+      ssl_days_until_expiry?: number;
+      ssl_expiry_date?: Date;
+    }
   ): Promise<UpdateServiceStatusResult> {
     const client = await this.pool.connect();
     try {
@@ -181,12 +210,17 @@ export class PostgresAdapter extends DatabaseAdapter {
         lastStatus = 'failure';
       }
 
+      // Подготавливаем значения SSL полей
+      const sslDaysUntilExpiry = options?.ssl_days_until_expiry !== undefined ? options.ssl_days_until_expiry : null;
+      const sslExpiryDate = options?.ssl_expiry_date ? Math.floor(options.ssl_expiry_date.getTime() / 1000) : null;
+      
       // Обновляем сервис
       await client.query(`
         UPDATE services
-        SET failure_count = $1, last_status = $2, last_check = EXTRACT(EPOCH FROM NOW())
+        SET failure_count = $1, last_status = $2, last_check = EXTRACT(EPOCH FROM NOW()),
+            ssl_days_until_expiry = $4, ssl_expiry_date = $5
         WHERE id = $3
-      `, [failureCount, lastStatus, serviceId]);
+      `, [failureCount, lastStatus, serviceId, sslDaysUntilExpiry, sslExpiryDate]);
 
       // Записываем результат проверки
       await client.query(`

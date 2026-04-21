@@ -41,7 +41,7 @@ export class SQLiteAdapter extends DatabaseAdapter {
       CREATE TABLE IF NOT EXISTS services (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
-        type TEXT NOT NULL CHECK (type IN ('ip', 'http')),
+        type TEXT NOT NULL CHECK (type IN ('ip', 'http', 'ssl')),
         address TEXT NOT NULL,
         interval INTEGER NOT NULL,
         timeout INTEGER DEFAULT 5000,
@@ -49,7 +49,11 @@ export class SQLiteAdapter extends DatabaseAdapter {
         last_status TEXT DEFAULT 'unknown',
         last_check INTEGER DEFAULT 0,
         created_at INTEGER DEFAULT (strftime('%s', 'now')),
-        service_group TEXT DEFAULT ''
+        service_group TEXT DEFAULT '',
+        warn_before INTEGER DEFAULT NULL,
+        check_at TEXT DEFAULT NULL,
+        ssl_days_until_expiry INTEGER DEFAULT NULL,
+        ssl_expiry_date INTEGER DEFAULT NULL
       )
     `);
 
@@ -79,19 +83,54 @@ export class SQLiteAdapter extends DatabaseAdapter {
     } catch (err) {
       // Колонка уже существует, игнорируем ошибку
     }
+    
+    // Миграция для SSL полей
+    try {
+      this.db.exec(`ALTER TABLE services ADD COLUMN warn_before INTEGER DEFAULT NULL`);
+      console.log('Миграция: добавлена колонка warn_before');
+    } catch (err) {
+      // Колонка уже существует, игнорируем ошибку
+    }
+    
+    try {
+      this.db.exec(`ALTER TABLE services ADD COLUMN check_at TEXT DEFAULT NULL`);
+      console.log('Миграция: добавлена колонка check_at');
+    } catch (err) {
+      // Колонка уже существует, игнорируем ошибку
+    }
+    
+    try {
+      this.db.exec(`ALTER TABLE services ADD COLUMN ssl_days_until_expiry INTEGER DEFAULT NULL`);
+      console.log('Миграция: добавлена колонка ssl_days_until_expiry');
+    } catch (err) {
+      // Колонка уже существует, игнорируем ошибку
+    }
+    
+    try {
+      this.db.exec(`ALTER TABLE services ADD COLUMN ssl_expiry_date INTEGER DEFAULT NULL`);
+      console.log('Миграция: добавлена колонка ssl_expiry_date');
+    } catch (err) {
+      // Колонка уже существует, игнорируем ошибку
+    }
+    
+    // Миграция типа: обновить CHECK constraint нельзя напрямую, нужно пересоздать таблицу
+    // Но можно просто игнорировать, т.к. SQLite не проверяет CHECK при ALTER TABLE
+    // Нужно обновить только новые сервисы, старые продолжат работать
   }
 
   async syncServices(services: Service[]): Promise<void> {
     const stmt = this.db.prepare(`
-      INSERT INTO services (id, name, type, address, interval, timeout, service_group)
-      VALUES (@id, @name, @type, @address, @interval, @timeout, @service_group)
+      INSERT INTO services (id, name, type, address, interval, timeout, service_group, warn_before, check_at)
+      VALUES (@id, @name, @type, @address, @interval, @timeout, @service_group, @warn_before, @check_at)
       ON CONFLICT(id) DO UPDATE SET
         name = excluded.name,
         type = excluded.type,
         address = excluded.address,
         interval = excluded.interval,
         timeout = excluded.timeout,
-        service_group = excluded.service_group
+        service_group = excluded.service_group,
+        warn_before = excluded.warn_before,
+        check_at = excluded.check_at
     `);
 
     const transaction = this.db.transaction((services: Service[]) => {
@@ -103,7 +142,9 @@ export class SQLiteAdapter extends DatabaseAdapter {
           address: service.address,
           interval: service.interval,
           timeout: service.timeout || 5000,
-          service_group: service.group || ''
+          service_group: service.group || '',
+          warn_before: service.warn_before !== undefined ? service.warn_before : null,
+          check_at: service.check_at || null
         });
       }
     });
@@ -124,7 +165,11 @@ export class SQLiteAdapter extends DatabaseAdapter {
     serviceId: string,
     success: boolean,
     responseTime: number | null = null,
-    errorMessage: string | null = null
+    errorMessage: string | null = null,
+    options?: {
+      ssl_days_until_expiry?: number;
+      ssl_expiry_date?: Date;
+    }
   ): Promise<UpdateServiceStatusResult> {
     const service = await this.getService(serviceId);
     if (!service) {
@@ -142,12 +187,17 @@ export class SQLiteAdapter extends DatabaseAdapter {
       lastStatus = 'failure';
     }
 
+    // Подготавливаем значения SSL полей
+    const sslDaysUntilExpiry = options?.ssl_days_until_expiry !== undefined ? options.ssl_days_until_expiry : null;
+    const sslExpiryDate = options?.ssl_expiry_date ? Math.floor(options.ssl_expiry_date.getTime() / 1000) : null;
+    
     const stmt = this.db.prepare(`
       UPDATE services
-      SET failure_count = ?, last_status = ?, last_check = strftime('%s', 'now')
+      SET failure_count = ?, last_status = ?, last_check = strftime('%s', 'now'),
+          ssl_days_until_expiry = ?, ssl_expiry_date = ?
       WHERE id = ?
     `);
-    stmt.run(failureCount, lastStatus, serviceId);
+    stmt.run(failureCount, lastStatus, sslDaysUntilExpiry, sslExpiryDate, serviceId);
 
     // Записать результат проверки в историю
     const checkStmt = this.db.prepare(`

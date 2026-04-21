@@ -96,10 +96,40 @@ class ConfigLoader {
           const data = await fs.readFile(filePath, 'utf8');
           const service = JSON.parse(data);
           // Валидация обязательных полей
-          if (!service.name || !service.type || !service.address || !service.interval) {
+          if (!service.name || !service.type || !service.address) {
             console.warn(`Пропущен некорректный сервис в ${file}: отсутствуют обязательные поля`);
             continue;
           }
+          
+          // Для SSL сервисов устанавливаем значения по умолчанию
+          if (service.type === 'ssl') {
+            // Интервал по умолчанию: 24 часа (86400 секунд)
+            if (!service.interval) {
+              service.interval = 86400;
+            }
+            // Предупреждение по умолчанию: за 30 дней до экспирации
+            if (service.warn_before === undefined) {
+              service.warn_before = 30;
+            }
+            // Время проверки по умолчанию: 00:00
+            if (!service.check_at) {
+              service.check_at = '00:00';
+            }
+            // Проверяем формат времени
+            if (service.check_at && !/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(service.check_at)) {
+              console.warn(`Некорректный формат check_at в ${file}: ${service.check_at}, используем 00:00`);
+              service.check_at = '00:00';
+            }
+            // Адрес должен начинаться с https://
+            if (!service.address.startsWith('https://')) {
+              console.warn(`Адрес SSL сервиса в ${file} должен начинаться с https://: ${service.address}`);
+            }
+          } else if (!service.interval) {
+            // Для других типов interval обязателен
+            console.warn(`Пропущен некорректный сервис в ${file}: отсутствует interval`);
+            continue;
+          }
+          
           // Добавляем идентификатор на основе имени файла
           service.id = path.basename(file, '.json');
           this.services.push(service as Service);
