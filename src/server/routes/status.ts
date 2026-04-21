@@ -96,17 +96,19 @@ router.get('/api/service/:id/checks', async (req: Request, res: Response) => {
     const checks = await database.getServiceChecks(serviceId, limit);
     return res.json({
       success: true,
-      service: {
-        id: service.id,
-        name: service.name
-      },
-      checks: checks.map(check => ({
-        id: check.id,
-        status: check.status,
-        responseTime: check.response_time,
-        errorMessage: check.error_message,
-        checkedAt: check.checked_at
-      }))
+      data: {
+        service: {
+          id: service.id,
+          name: service.name
+        },
+        checks: checks.map(check => ({
+          id: check.id,
+          status: check.status,
+          responseTime: check.response_time,
+          errorMessage: check.error_message,
+          checkedAt: check.checked_at
+        }))
+      }
     });
   } catch (err) {
     console.error('Ошибка при получении истории проверок:', err);

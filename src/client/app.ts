@@ -147,7 +147,6 @@ class MonitoringUI {
     }
 
     private async loadServiceHistory(serviceId: string, serviceName: string): Promise<void> {
-        console.log('loadServiceHistory called:', serviceId, serviceName);
         try {
             const response = await fetch(`/api/service/${serviceId}/checks?limit=20`);
             const data = await response.json() as APIResponse<ChecksResponse>;
@@ -170,7 +169,6 @@ class MonitoringUI {
     private showHistoryModal(serviceName: string, checks: Check[]): void {
         const modal = this.modal;
         const historyContent = this.historyContent;
-        console.log('showHistoryModal called:', serviceName, checks.length, modal, historyContent);
         if (!modal || !historyContent) {
             console.error('Modal or historyContent not found');
             return;
@@ -219,9 +217,7 @@ class MonitoringUI {
         }
 
         historyContent.innerHTML = html;
-        console.log('Adding active class to modal, current classes:', modal.className);
         modal.classList.add('active');
-        console.log('After adding active class:', modal.className);
     }
 
     private async forceCheckService(serviceId: string, serviceName: string): Promise<void> {
