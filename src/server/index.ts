@@ -59,11 +59,10 @@ class MonitoringServer {
     // Middleware аутентификации (перед статикой, но с исключениями для статических путей)
     const authLogger = Logger.withPrefix('Auth');
     this.app.use((req, res, next) => {
-      console.log(`[DEBUG] Auth middleware called: ${req.method} ${req.path}`);
-      authLogger.info(`Запрос: ${req.method} ${req.path}, IP: ${req.ip}`);
+      authLogger.debug(`Запрос: ${req.method} ${req.path}, IP: ${req.ip}`);
       // Если пользователей нет, аутентификация не требуется
       if (!auth.hasUsers()) {
-        authLogger.info(`Аутентификация не требуется (нет пользователей): ${req.method} ${req.path}`);
+        authLogger.debug(`Аутентификация не требуется (нет пользователей): ${req.method} ${req.path}`);
         return next();
       }
 
@@ -71,7 +70,7 @@ class MonitoringServer {
       const publicPaths = ['/login', '/api/login', '/api/logout', '/logout'];
       const staticPrefixes = ['/css/', '/js/', '/public/'];
       if (publicPaths.includes(req.path) || staticPrefixes.some(prefix => req.path.startsWith(prefix))) {
-        console.log(`[DEBUG] Public path: ${req.path}, skipping auth`);
+        authLogger.debug(`Публичный путь: ${req.path}, пропускаем аутентификацию`);
         return next();
       }
 
@@ -117,7 +116,7 @@ class MonitoringServer {
       }
 
       // Логируем успешный доступ
-      authLogger.info(`Доступ разрешен: ${username} -> ${req.method} ${req.path} от ${req.ip}`);
+      authLogger.debug(`Доступ разрешен: ${username} -> ${req.method} ${req.path} от ${req.ip}`);
       // Добавляем пользователя в объект запроса
       (req as any).user = username;
       return next();

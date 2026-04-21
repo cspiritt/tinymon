@@ -142,6 +142,6 @@ export function hashPassword(password: string): string {
  */
 export function hasUsers(): boolean {
   const users = config.getUsers();
-  authLogger.info(`Проверка пользователей: загружено ${users.length}`);
+  authLogger.debug(`Проверка пользователей: загружено ${users.length}`);
   return users.length > 0;
 }
