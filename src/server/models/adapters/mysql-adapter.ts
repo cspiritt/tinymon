@@ -72,7 +72,8 @@ export class MySQLAdapter extends DatabaseAdapter {
         warn_before INT DEFAULT NULL,
         check_at VARCHAR(10) DEFAULT NULL,
         ssl_days_until_expiry INT DEFAULT NULL,
-        ssl_expiry_date BIGINT DEFAULT NULL
+        ssl_expiry_date BIGINT DEFAULT NULL,
+        last_notified_status VARCHAR(50) DEFAULT 'unknown'
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
     
@@ -98,6 +99,10 @@ export class MySQLAdapter extends DatabaseAdapter {
       ALTER TABLE services ADD COLUMN IF NOT EXISTS ssl_expiry_date BIGINT DEFAULT NULL
     `);
 
+    await connection.query(`
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS last_notified_status VARCHAR(50) DEFAULT 'unknown'
+    `);
+
     // Таблица результатов проверок
     await connection.query(`
       CREATE TABLE IF NOT EXISTS checks (
@@ -110,6 +115,19 @@ export class MySQLAdapter extends DatabaseAdapter {
         FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
         INDEX idx_checks_service_id (service_id),
         INDEX idx_checks_checked_at (checked_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Таблица подписчиков на уведомления
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS notification_subscribers (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        provider_id VARCHAR(255) NOT NULL,
+        subscriber_id VARCHAR(255) NOT NULL,
+        data TEXT DEFAULT '{}',
+        subscribed_at BIGINT DEFAULT UNIX_TIMESTAMP(),
+        is_active BOOLEAN DEFAULT true,
+        UNIQUE KEY unique_provider_subscriber (provider_id, subscriber_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
   }
@@ -274,6 +292,66 @@ export class MySQLAdapter extends DatabaseAdapter {
         WHERE checked_at > ?
         GROUP BY service_id
       `, [since]);
+      return rows;
+    } finally {
+      connection.release();
+    }
+  }
+
+  async getServiceLastNotifiedStatus(serviceId: string): Promise<string> {
+    const connection = await this.pool.getConnection();
+    try {
+      const [rows] = await connection.query('SELECT last_notified_status FROM services WHERE id = ?', [serviceId]);
+      return rows[0]?.last_notified_status || 'unknown';
+    } finally {
+      connection.release();
+    }
+  }
+
+  async updateServiceLastNotifiedStatus(serviceId: string, status: string): Promise<void> {
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.query('UPDATE services SET last_notified_status = ? WHERE id = ?', [status, serviceId]);
+    } finally {
+      connection.release();
+    }
+  }
+
+  async addNotificationSubscriber(providerId: string, subscriberId: string, data?: any): Promise<void> {
+    const connection = await this.pool.getConnection();
+    try {
+      const dataStr = data ? JSON.stringify(data) : '{}';
+      await connection.query(`
+        INSERT INTO notification_subscribers (provider_id, subscriber_id, data, is_active, subscribed_at)
+        VALUES (?, ?, ?, true, UNIX_TIMESTAMP())
+        ON DUPLICATE KEY UPDATE
+          data = VALUES(data),
+          is_active = true,
+          subscribed_at = VALUES(subscribed_at)
+      `, [providerId, subscriberId, dataStr]);
+    } finally {
+      connection.release();
+    }
+  }
+
+  async removeNotificationSubscriber(providerId: string, subscriberId: string): Promise<void> {
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.query(`
+        UPDATE notification_subscribers SET is_active = false WHERE provider_id = ? AND subscriber_id = ?
+      `, [providerId, subscriberId]);
+    } finally {
+      connection.release();
+    }
+  }
+
+  async getNotificationSubscribers(providerId: string): Promise<any[]> {
+    const connection = await this.pool.getConnection();
+    try {
+      const [rows] = await connection.query(`
+        SELECT subscriber_id, data, subscribed_at FROM notification_subscribers 
+        WHERE provider_id = ? AND is_active = true
+      `, [providerId]);
       return rows;
     } finally {
       connection.release();

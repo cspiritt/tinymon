@@ -71,6 +71,41 @@ class DatabaseManager {
     return this.adapter!.getStats(periodHours);
   }
 
+  async getServiceLastNotifiedStatus(serviceId: string): Promise<string> {
+    if (!this.adapter) {
+      await this.connect();
+    }
+    return this.adapter!.getServiceLastNotifiedStatus(serviceId);
+  }
+
+  async updateServiceLastNotifiedStatus(serviceId: string, status: string): Promise<void> {
+    if (!this.adapter) {
+      await this.connect();
+    }
+    return this.adapter!.updateServiceLastNotifiedStatus(serviceId, status);
+  }
+
+  async addNotificationSubscriber(providerId: string, subscriberId: string, data?: any): Promise<void> {
+    if (!this.adapter) {
+      await this.connect();
+    }
+    return this.adapter!.addNotificationSubscriber(providerId, subscriberId, data);
+  }
+
+  async removeNotificationSubscriber(providerId: string, subscriberId: string): Promise<void> {
+    if (!this.adapter) {
+      await this.connect();
+    }
+    return this.adapter!.removeNotificationSubscriber(providerId, subscriberId);
+  }
+
+  async getNotificationSubscribers(providerId: string): Promise<any[]> {
+    if (!this.adapter) {
+      await this.connect();
+    }
+    return this.adapter!.getNotificationSubscribers(providerId);
+  }
+
   async close(): Promise<void> {
     if (this.adapter) {
       await this.adapter.close();

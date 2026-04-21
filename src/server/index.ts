@@ -6,6 +6,7 @@ import ejs from 'ejs';
 import config from './utils/config';
 import database from './models/database';
 import scheduler from './utils/scheduler';
+import notificationManager from './notifications/notification-manager';
 import statusRoutes from './routes/status';
 
 class MonitoringServer {
@@ -26,6 +27,9 @@ class MonitoringServer {
 
     // Синхронизация сервисов
     await database.syncServices(config.getServices());
+
+    // Инициализация менеджера уведомлений
+    await notificationManager.initialize();
 
     // Настройка middleware
     this.app.use(bodyParser.json());
@@ -89,6 +93,9 @@ class MonitoringServer {
   stop(): void {
     console.log('Остановка сервера мониторинга...');
     scheduler.stopAll();
+    notificationManager.shutdown().catch(err => {
+      console.error('Ошибка остановки менеджера уведомлений:', err);
+    });
     database.close();
     if (this.server) {
       this.server.close(() => {

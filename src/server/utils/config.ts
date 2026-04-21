@@ -46,6 +46,11 @@ class ConfigLoader {
           }
         };
       }
+      
+      // Устанавливаем notification_providers по умолчанию, если не указано
+      if (!this.settings.notification_providers) {
+        this.settings.notification_providers = [];
+      }
 
       console.log('Настройки загружены:', this.settings);
     } catch (err) {
@@ -77,7 +82,8 @@ class ConfigLoader {
             user: 'root',
             password: ''
           }
-        }
+        },
+        notification_providers: []
       };
       // Создаем файл с настройками по умолчанию
       await fs.writeFile(settingsPath, JSON.stringify(this.settings, null, 2));

@@ -65,7 +65,8 @@ export class PostgresAdapter extends DatabaseAdapter {
           warn_before INTEGER DEFAULT NULL,
           check_at TEXT DEFAULT NULL,
           ssl_days_until_expiry INTEGER DEFAULT NULL,
-          ssl_expiry_date BIGINT DEFAULT NULL
+          ssl_expiry_date BIGINT DEFAULT NULL,
+          last_notified_status TEXT DEFAULT 'unknown'
         )
       `);
       
@@ -91,6 +92,10 @@ export class PostgresAdapter extends DatabaseAdapter {
         ALTER TABLE services ADD COLUMN IF NOT EXISTS ssl_expiry_date BIGINT DEFAULT NULL
       `);
 
+      await client.query(`
+        ALTER TABLE services ADD COLUMN IF NOT EXISTS last_notified_status TEXT DEFAULT 'unknown'
+      `);
+
       // Таблица результатов проверок
       await client.query(`
         CREATE TABLE IF NOT EXISTS checks (
@@ -107,6 +112,19 @@ export class PostgresAdapter extends DatabaseAdapter {
       await client.query(`
         CREATE INDEX IF NOT EXISTS idx_checks_service_id ON checks(service_id);
         CREATE INDEX IF NOT EXISTS idx_checks_checked_at ON checks(checked_at);
+      `);
+
+      // Таблица подписчиков на уведомления
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS notification_subscribers (
+          id SERIAL PRIMARY KEY,
+          provider_id TEXT NOT NULL,
+          subscriber_id TEXT NOT NULL,
+          data TEXT DEFAULT '{}',
+          subscribed_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()),
+          is_active BOOLEAN DEFAULT true,
+          UNIQUE(provider_id, subscriber_id)
+        )
       `);
     } finally {
       client.release();
@@ -272,6 +290,66 @@ export class PostgresAdapter extends DatabaseAdapter {
         WHERE checked_at > $1
         GROUP BY service_id
       `, [since]);
+      return result.rows;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getServiceLastNotifiedStatus(serviceId: string): Promise<string> {
+    const client = await this.pool.connect();
+    try {
+      const result = await client.query('SELECT last_notified_status FROM services WHERE id = $1', [serviceId]);
+      return result.rows[0]?.last_notified_status || 'unknown';
+    } finally {
+      client.release();
+    }
+  }
+
+  async updateServiceLastNotifiedStatus(serviceId: string, status: string): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('UPDATE services SET last_notified_status = $1 WHERE id = $2', [status, serviceId]);
+    } finally {
+      client.release();
+    }
+  }
+
+  async addNotificationSubscriber(providerId: string, subscriberId: string, data?: any): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      const dataStr = data ? JSON.stringify(data) : '{}';
+      await client.query(`
+        INSERT INTO notification_subscribers (provider_id, subscriber_id, data, is_active, subscribed_at)
+        VALUES ($1, $2, $3, true, EXTRACT(EPOCH FROM NOW()))
+        ON CONFLICT (provider_id, subscriber_id) DO UPDATE SET
+          data = EXCLUDED.data,
+          is_active = true,
+          subscribed_at = EXCLUDED.subscribed_at
+      `, [providerId, subscriberId, dataStr]);
+    } finally {
+      client.release();
+    }
+  }
+
+  async removeNotificationSubscriber(providerId: string, subscriberId: string): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query(`
+        UPDATE notification_subscribers SET is_active = false WHERE provider_id = $1 AND subscriber_id = $2
+      `, [providerId, subscriberId]);
+    } finally {
+      client.release();
+    }
+  }
+
+  async getNotificationSubscribers(providerId: string): Promise<any[]> {
+    const client = await this.pool.connect();
+    try {
+      const result = await client.query(`
+        SELECT subscriber_id, data, subscribed_at FROM notification_subscribers 
+        WHERE provider_id = $1 AND is_active = true
+      `, [providerId]);
       return result.rows;
     } finally {
       client.release();

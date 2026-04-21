@@ -48,6 +48,26 @@ export interface Settings {
   retries: number;
   logLevel: 'error' | 'warn' | 'info' | 'debug';
   database: DatabaseConfig;
+  notification_providers?: NotificationProviderConfig[];
+}
+
+export interface NotificationProviderConfig {
+  id: string;
+  type: 'telegram';
+  parameters: Record<string, any>;
+}
+
+export type ServiceStatus = 'OK' | 'WARNING' | 'ERROR' | 'unknown';
+
+export interface ServiceState {
+  serviceId: string;
+  serviceName: string;
+  previousStatus: ServiceStatus;
+  currentStatus: ServiceStatus;
+  timestamp: number;
+  failureCount: number;
+  errorMessage?: string;
+  ssl_days_until_expiry?: number;
 }
 
 export interface CheckResult {
@@ -57,7 +77,7 @@ export interface CheckResult {
   responseTime: number | null;
   errorMessage: string | null;
   failureCount: number;
-  status: 'OK' | 'WARNING' | 'ERROR' | 'unknown';
+  status: ServiceStatus;
   ssl_days_until_expiry?: number;  // Для SSL: дней до истечения срока действия
   ssl_expiry_date?: Date;          // Для SSL: дата истечения срока
 }

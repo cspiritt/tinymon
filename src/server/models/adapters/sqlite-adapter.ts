@@ -53,7 +53,8 @@ export class SQLiteAdapter extends DatabaseAdapter {
         warn_before INTEGER DEFAULT NULL,
         check_at TEXT DEFAULT NULL,
         ssl_days_until_expiry INTEGER DEFAULT NULL,
-        ssl_expiry_date INTEGER DEFAULT NULL
+        ssl_expiry_date INTEGER DEFAULT NULL,
+        last_notified_status TEXT DEFAULT 'unknown'
       )
     `);
 
@@ -67,6 +68,19 @@ export class SQLiteAdapter extends DatabaseAdapter {
         error_message TEXT,
         checked_at INTEGER DEFAULT (strftime('%s', 'now')),
         FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Таблица подписчиков на уведомления
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS notification_subscribers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        provider_id TEXT NOT NULL,
+        subscriber_id TEXT NOT NULL,
+        data TEXT DEFAULT '{}',
+        subscribed_at INTEGER DEFAULT (strftime('%s', 'now')),
+        is_active INTEGER DEFAULT 1,
+        UNIQUE(provider_id, subscriber_id)
       )
     `);
 
@@ -109,6 +123,13 @@ export class SQLiteAdapter extends DatabaseAdapter {
     try {
       this.db.exec(`ALTER TABLE services ADD COLUMN ssl_expiry_date INTEGER DEFAULT NULL`);
       console.log('Миграция: добавлена колонка ssl_expiry_date');
+    } catch (err) {
+      // Колонка уже существует, игнорируем ошибку
+    }
+    
+    try {
+      this.db.exec(`ALTER TABLE services ADD COLUMN last_notified_status TEXT DEFAULT 'unknown'`);
+      console.log('Миграция: добавлена колонка last_notified_status');
     } catch (err) {
       // Колонка уже существует, игнорируем ошибку
     }
@@ -235,6 +256,36 @@ export class SQLiteAdapter extends DatabaseAdapter {
       WHERE checked_at > ?
       GROUP BY service_id
     `).all(since);
+  }
+
+  async getServiceLastNotifiedStatus(serviceId: string): Promise<string> {
+    const result = this.db.prepare('SELECT last_notified_status FROM services WHERE id = ?').get(serviceId);
+    return result ? result.last_notified_status : 'unknown';
+  }
+
+  async updateServiceLastNotifiedStatus(serviceId: string, status: string): Promise<void> {
+    this.db.prepare('UPDATE services SET last_notified_status = ? WHERE id = ?').run(status, serviceId);
+  }
+
+  async addNotificationSubscriber(providerId: string, subscriberId: string, data?: any): Promise<void> {
+    const dataStr = data ? JSON.stringify(data) : '{}';
+    this.db.prepare(`
+      INSERT OR REPLACE INTO notification_subscribers (provider_id, subscriber_id, data, is_active, subscribed_at)
+      VALUES (?, ?, ?, 1, strftime('%s', 'now'))
+    `).run(providerId, subscriberId, dataStr);
+  }
+
+  async removeNotificationSubscriber(providerId: string, subscriberId: string): Promise<void> {
+    this.db.prepare(`
+      UPDATE notification_subscribers SET is_active = 0 WHERE provider_id = ? AND subscriber_id = ?
+    `).run(providerId, subscriberId);
+  }
+
+  async getNotificationSubscribers(providerId: string): Promise<any[]> {
+    return this.db.prepare(`
+      SELECT subscriber_id, data, subscribed_at FROM notification_subscribers 
+      WHERE provider_id = ? AND is_active = 1
+    `).all(providerId);
   }
 
   async close(): Promise<void> {

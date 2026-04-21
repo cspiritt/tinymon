@@ -2,6 +2,7 @@ import config from './config';
 import database from '../models/database';
 import { checkIpAddress } from './tcp-ping';
 import { checkSSLCertificate } from './ssl-checker';
+import notificationManager from '../notifications/notification-manager';
 import { Service, CheckResult } from '../types';
 
 class ServiceChecker {
@@ -44,11 +45,23 @@ class ServiceChecker {
             ssl_expiry_date: sslResult.ssl_expiry_date
           }
         );
-        
+
+        const failureCount = result ? result.failureCount : 0;
+        const status = sslResult.status;
+
+        // Отправляем уведомление при изменении статуса
+        notificationManager.checkAndNotifyStatusChange(
+          service.id,
+          service.name,
+          status,
+          errorMessage || undefined,
+          sslResult.ssl_days_until_expiry
+        ).catch(err => console.error('Ошибка отправки уведомления:', err));
+
         return {
           ...sslResult,
-          failureCount: result ? result.failureCount : 0,
-          status: sslResult.status
+          failureCount,
+          status
         };
       } else {
         throw new Error(`Неизвестный тип сервиса: ${service.type}`);
@@ -66,14 +79,25 @@ class ServiceChecker {
       errorMessage
     );
 
+    const failureCount = result ? result.failureCount : 0;
+    const status = this.getStatus(failureCount);
+
+    // Отправляем уведомление при изменении статуса
+    notificationManager.checkAndNotifyStatusChange(
+      service.id,
+      service.name,
+      status,
+      errorMessage || undefined
+    ).catch(err => console.error('Ошибка отправки уведомления:', err));
+
     return {
       serviceId: service.id,
       serviceName: service.name,
       success,
       responseTime,
       errorMessage,
-      failureCount: result ? result.failureCount : 0,
-      status: this.getStatus(result ? result.failureCount : 0)
+      failureCount,
+      status
     };
   }
 

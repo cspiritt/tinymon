@@ -82,4 +82,13 @@ export abstract class DatabaseAdapter {
    * Закрыть соединение с БД
    */
   abstract close(): Promise<void>;
+
+  // Методы для уведомлений
+  abstract getServiceLastNotifiedStatus(serviceId: string): Promise<string>;
+  abstract updateServiceLastNotifiedStatus(serviceId: string, status: string): Promise<void>;
+  
+  // Методы для подписчиков на уведомления
+  abstract addNotificationSubscriber(providerId: string, subscriberId: string, data?: any): Promise<void>;
+  abstract removeNotificationSubscriber(providerId: string, subscriberId: string): Promise<void>;
+  abstract getNotificationSubscribers(providerId: string): Promise<any[]>;
 }

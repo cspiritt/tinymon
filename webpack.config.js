@@ -22,7 +22,8 @@ module.exports = {
     'pg',
     'mysql2',
     'pg-native',
-    'mysql'
+    'mysql',
+    'node-telegram-bot-api'
   ],
   module: {
     rules: [
