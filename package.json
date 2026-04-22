@@ -13,7 +13,7 @@
     "build": "webpack --config webpack.config.js",
     "build:client": "npm run copy:vendor && webpack --config webpack.client.config.js",
     "build:all": "npm run clean && npm run build && npm run build:client",
-    "build:legacy": "npm run copy:vendor && node build.js",
+    "build:legacy": "npm run build:client && node build.js --no-clean",
     "start:prod": "cd dist && node bundle.js",
     "type-check": "tsc --noEmit",
     "type-check:client": "tsc --noEmit --project tsconfig.client.json"

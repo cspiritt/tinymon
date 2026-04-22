@@ -4,6 +4,9 @@ const path = require('path');
 const sourceDir = __dirname;
 const targetDir = path.join(__dirname, 'dist');
 
+// Check for --no-clean flag
+const skipClean = process.argv.includes('--no-clean');
+
 // Files and folders to copy
 const copyItems = [
   'index.js',
@@ -27,7 +30,8 @@ const ignorePatterns = [
   '.DS_Store',
   '*.log',
   '*.db',
-  '*.db-journal'
+  '*.db-journal',
+  'js'  // Ignore empty js directory in public
 ];
 
 async function cleanTarget() {
@@ -102,9 +106,13 @@ node_modules/
 async function build() {
   try {
     console.log('Starting project build...');
-    
-    // Clean target directory
-    await cleanTarget();
+
+    // Clean target directory unless --no-clean flag is set
+    if (!skipClean) {
+      await cleanTarget();
+    } else {
+      console.log('Skipping clean target directory (--no-clean flag set)');
+    }
     
     // Copy files and folders
     for (const item of copyItems) {

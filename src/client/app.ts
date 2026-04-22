@@ -10,6 +10,10 @@ interface Service {
     lastStatus: string;
     createdAt: number;
     group?: string;
+    warn_before?: number;
+    check_at?: string;
+    ssl_days_until_expiry?: number;
+    ssl_expiry_date?: number;
 }
 
 interface Check {
@@ -165,7 +169,17 @@ class MonitoringUI {
             const statusBadge = row.querySelector('.status-badge');
             if (statusBadge) {
                 statusBadge.className = `status-badge status-${service.status.toLowerCase()}`;
-                statusBadge.textContent = service.status;
+                
+                // For SSL services, add certificate expiration info
+                if (service.type === 'ssl' && service.ssl_days_until_expiry !== undefined && service.ssl_days_until_expiry !== null) {
+                    if (service.ssl_days_until_expiry <= 0) {
+                        statusBadge.textContent = `${service.status} (${Math.abs(service.ssl_days_until_expiry)} days ago)`;
+                    } else {
+                        statusBadge.textContent = `${service.status} (${service.ssl_days_until_expiry} days)`;
+                    }
+                } else {
+                    statusBadge.textContent = service.status;
+                }
             }
 
             // Update failure count
