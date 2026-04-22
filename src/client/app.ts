@@ -539,10 +539,9 @@ class MonitoringUI {
                     font-family: monospace;
                     font-size: 0.85rem;
                     color: #dc3545;
-                    max-width: 200px;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
+                    max-width: 500px;
+                    word-wrap: break-word;
+                    white-space: normal;
                 }
                 .no-history {
                     text-align: center;
