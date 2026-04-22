@@ -47,6 +47,7 @@ export interface Settings {
   timeout: number;
   retries: number;
   logLevel: 'error' | 'warn' | 'info' | 'debug';
+  dateFormat?: string; // Date format for display (e.g., 'en-US', 'ru-RU', 'YYYY-MM-DD HH:mm:ss')
   database: DatabaseConfig;
   notification_providers?: NotificationProviderConfig[];
   users?: User[];

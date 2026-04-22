@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="date-format" content="<%= dateFormat %>">
     <title><%= title %></title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css">
@@ -121,11 +122,7 @@
                                             <span class="failure-count"><%= service.failure_count %></span>
                                         </td>
                                         <td class="service-last-check">
-                                            <% if (service.lastCheck) { %>
-                                                <%= new Date(service.lastCheck).toLocaleString() %>
-                                            <% } else { %>
-                                                Never
-                                            <% } %>
+                                            —
                                         </td>
                                         <td class="service-actions">
                                             <button class="action-btn check-btn" title="Check now">

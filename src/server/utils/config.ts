@@ -72,6 +72,7 @@ class ConfigLoader {
         timeout: 5000,
         retries: 3,
         logLevel: 'info',
+        dateFormat: 'en-US', // Default date format
         database: {
           type: 'sqlite',
           sqlite: {

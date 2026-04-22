@@ -44,6 +44,63 @@ interface NotificationOptions {
     type?: 'success' | 'error' | 'info';
 }
 
+/**
+ * Date formatting utility for client-side
+ * Uses locale from meta tag "date-format"
+ */
+class DateFormatter {
+    private static instance: DateFormatter;
+    private locale: string;
+
+    private constructor() {
+        const dateFormatMeta = document.querySelector('meta[name="date-format"]');
+        this.locale = dateFormatMeta?.getAttribute('content') || 'en-US';
+    }
+
+    public static getInstance(): DateFormatter {
+        if (!DateFormatter.instance) {
+            DateFormatter.instance = new DateFormatter();
+        }
+        return DateFormatter.instance;
+    }
+
+    /**
+     * Format date using configured locale
+     */
+    public format(date: Date | number | string): string {
+        const dateObj = typeof date === 'string' || typeof date === 'number'
+            ? new Date(date)
+            : date;
+
+        try {
+            return dateObj.toLocaleString(this.locale, {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+        } catch (error) {
+            // Fallback to default locale if specified locale is invalid
+            console.warn(`Invalid locale "${this.locale}", falling back to "en-US"`);
+            return dateObj.toLocaleString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+        }
+    }
+}
+
+// Global date formatter instance
+const dateFormatter = DateFormatter.getInstance();
+
 class MonitoringUI {
     private refreshBtn: HTMLElement | null;
     private lastUpdateTime: HTMLElement | null;
@@ -101,6 +158,8 @@ class MonitoringUI {
         this.setupGroupHandlers();
         this.updateLastUpdateTime();
         this.setupAutoRefresh();
+        // Load initial data immediately
+        this.refreshData(true);
     }
 
     private setupGroupHandlers(): void {
@@ -132,7 +191,7 @@ class MonitoringUI {
     private updateLastUpdateTime(): void {
         if (!this.lastUpdateTime) return;
         const now = new Date();
-        this.lastUpdateTime.textContent = now.toLocaleTimeString();
+        this.lastUpdateTime.textContent = dateFormatter.format(now);
     }
 
     // Update data via API
@@ -191,7 +250,7 @@ class MonitoringUI {
             // Update last check time
             const lastCheckCell = row.querySelector('.service-last-check');
             if (lastCheckCell && service.lastCheck) {
-                lastCheckCell.textContent = new Date(service.lastCheck * 1000).toLocaleString();
+                lastCheckCell.textContent = dateFormatter.format(service.lastCheck * 1000);
             }
         });
     }
@@ -268,7 +327,7 @@ class MonitoringUI {
                         <tbody>
                             ${checks.map(check => `
                                 <tr>
-                                    <td>${new Date(check.checkedAt * 1000).toLocaleString()}</td>
+                                    <td>${dateFormatter.format(check.checkedAt * 1000)}</td>
                                     <td>
                                         <span class="history-status status-${check.status}">
                                             ${check.status === 'success' ? 'Success' : 'Error'}

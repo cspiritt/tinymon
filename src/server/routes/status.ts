@@ -97,12 +97,15 @@ router.get('/', async (req: Request, res: Response) => {
       return {
         ...service,
         status,
-        lastCheck: service.last_check ? new Date(service.last_check * 1000).toISOString() : null
+        lastCheck: service.last_check || null
       };
     });
 
     const groups = groupServices(servicesWithStatus);
     
+    const settings = config.getSettings();
+    const dateFormat = settings.dateFormat || 'en-US';
+
     res.render('status', {
       title: 'TinyMon - Service Monitoring',
       services: servicesWithStatus, // for backward compatibility
@@ -111,7 +114,8 @@ router.get('/', async (req: Request, res: Response) => {
       okCount: servicesWithStatus.filter(s => s.status === 'OK').length,
       warningCount: servicesWithStatus.filter(s => s.status === 'WARNING').length,
       errorCount: servicesWithStatus.filter(s => s.status === 'ERROR').length,
-      user: user
+      user: user,
+      dateFormat: dateFormat
     });
   } catch (err) {
     routesLogger.error('Error getting services:', err);
