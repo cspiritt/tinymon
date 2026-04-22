@@ -14,9 +14,9 @@ class DatabaseManager {
 
     try {
       this.adapter = await DatabaseFactory.createAdapter();
-      dbLogger.info(`База данных подключена (тип: ${config.getSettings().database.type})`);
+      dbLogger.info(`Database connected (type: ${config.getSettings().database.type})`);
     } catch (err) {
-      dbLogger.error('Ошибка подключения к базе данных:', (err as Error).message);
+      dbLogger.error('Database connection error:', (err as Error).message);
       throw err;
     }
   }
@@ -115,5 +115,5 @@ class DatabaseManager {
   }
 }
 
-// Экспортируем синглтон
+// Export singleton
 export default new DatabaseManager();

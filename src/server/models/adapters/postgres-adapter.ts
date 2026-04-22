@@ -19,7 +19,7 @@ export class PostgresAdapter extends DatabaseAdapter {
       this.pg = require('pg');
     } catch (err) {
       throw new Error(
-        'Модуль pg (node-postgres) не установлен. Установите его: npm install pg'
+        'pg module (node-postgres) is not installed. Install it: npm install pg'
       );
     }
 
@@ -36,11 +36,11 @@ export class PostgresAdapter extends DatabaseAdapter {
       connectionTimeoutMillis: 5000
     });
 
-    // Проверяем соединение
+    // Test connection
     const client = await this.pool.connect();
     try {
       await this.createTables();
-      dbLogger.info('PostgreSQL база данных подключена');
+      dbLogger.info('PostgreSQL database connected');
     } finally {
       client.release();
     }
@@ -49,7 +49,7 @@ export class PostgresAdapter extends DatabaseAdapter {
   async createTables(): Promise<void> {
     const client = await this.pool!.connect();
     try {
-      // Таблица сервисов
+      // Services table
       await client.query(`
         CREATE TABLE IF NOT EXISTS services (
           id TEXT PRIMARY KEY,
@@ -71,12 +71,12 @@ export class PostgresAdapter extends DatabaseAdapter {
         )
       `);
       
-      // Миграция: добавить колонку service_group если отсутствует
+      // Migration: add service_group column if missing
       await client.query(`
         ALTER TABLE services ADD COLUMN IF NOT EXISTS service_group TEXT DEFAULT ''
       `);
       
-      // Миграция для SSL полей
+      // Migration for SSL fields
       await client.query(`
         ALTER TABLE services ADD COLUMN IF NOT EXISTS warn_before INTEGER DEFAULT NULL
       `);
@@ -97,7 +97,7 @@ export class PostgresAdapter extends DatabaseAdapter {
         ALTER TABLE services ADD COLUMN IF NOT EXISTS last_notified_status TEXT DEFAULT 'unknown'
       `);
 
-      // Таблица результатов проверок
+      // Check results table
       await client.query(`
         CREATE TABLE IF NOT EXISTS checks (
           id SERIAL PRIMARY KEY,
@@ -109,13 +109,13 @@ export class PostgresAdapter extends DatabaseAdapter {
         )
       `);
 
-      // Индексы
+      // Indexes
       await client.query(`
         CREATE INDEX IF NOT EXISTS idx_checks_service_id ON checks(service_id);
         CREATE INDEX IF NOT EXISTS idx_checks_checked_at ON checks(checked_at);
       `);
 
-      // Таблица подписчиков на уведомления
+      // Notification subscribers table
       await client.query(`
         CREATE TABLE IF NOT EXISTS notification_subscribers (
           id SERIAL PRIMARY KEY,
@@ -164,7 +164,7 @@ export class PostgresAdapter extends DatabaseAdapter {
       }
 
       await client.query('COMMIT');
-      dbLogger.info(`PostgreSQL: синхронизировано сервисов: ${services.length}`);
+      dbLogger.info(`PostgreSQL: synchronized services: ${services.length}`);
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -207,7 +207,7 @@ export class PostgresAdapter extends DatabaseAdapter {
     try {
       await client.query('BEGIN');
 
-      // Получаем текущий сервис
+      // Get current service
       const serviceResult = await client.query(
         'SELECT failure_count FROM services WHERE id = $1',
         [serviceId]
@@ -215,7 +215,7 @@ export class PostgresAdapter extends DatabaseAdapter {
 
       if (serviceResult.rows.length === 0) {
         await client.query('ROLLBACK');
-        throw new Error(`Сервис ${serviceId} не найден`);
+        throw new Error(`Service ${serviceId} not found`);
       }
 
       let failureCount = serviceResult.rows[0].failure_count;
@@ -229,11 +229,11 @@ export class PostgresAdapter extends DatabaseAdapter {
         lastStatus = 'failure';
       }
 
-      // Подготавливаем значения SSL полей
+      // Prepare SSL field values
       const sslDaysUntilExpiry = options?.ssl_days_until_expiry !== undefined ? options.ssl_days_until_expiry : null;
       const sslExpiryDate = options?.ssl_expiry_date ? Math.floor(options.ssl_expiry_date.getTime() / 1000) : null;
       
-      // Обновляем сервис
+      // Update service
       await client.query(`
         UPDATE services
         SET failure_count = $1, last_status = $2, last_check = EXTRACT(EPOCH FROM NOW()),
@@ -241,7 +241,7 @@ export class PostgresAdapter extends DatabaseAdapter {
         WHERE id = $3
       `, [failureCount, lastStatus, serviceId, sslDaysUntilExpiry, sslExpiryDate]);
 
-      // Записываем результат проверки
+      // Record check result
       await client.query(`
         INSERT INTO checks (service_id, status, response_time, error_message)
         VALUES ($1, $2, $3, $4)

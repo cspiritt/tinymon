@@ -27,7 +27,7 @@ module.exports = {
     extensions: ['.ts', '.js', '.json']
   },
   plugins: [
-    // Копируем статические файлы
+    // Copy static files
     new CopyPlugin({
       patterns: [
         { from: 'public/css', to: path.resolve(__dirname, 'dist/public/css') },

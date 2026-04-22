@@ -2,13 +2,13 @@ import { NotificationProvider, NotificationMessage } from './notification-provid
 import database from '../models/database';
 import { notificationLogger } from '../utils/logger';
 
-// Динамический импорт для избежания включения в бандл
+// Dynamic import to avoid inclusion in bundle
 let TelegramBot: any;
 
 try {
   TelegramBot = require('node-telegram-bot-api');
 } catch (err) {
-  notificationLogger.warn('Библиотека node-telegram-bot-api не установлена. Telegram уведомления не будут работать.');
+  notificationLogger.warn('Library node-telegram-bot-api is not installed. Telegram notifications will not work.');
 }
 
 export class TelegramNotificationProvider extends NotificationProvider {
@@ -18,15 +18,15 @@ export class TelegramNotificationProvider extends NotificationProvider {
   constructor(providerId: string, parameters: Record<string, any>) {
     super(providerId, parameters);
     
-    // Проверка обязательных параметров
+    // Required parameters check
     if (!parameters.token) {
-      throw new Error('Не указан token для Telegram бота');
+      throw new Error('Token for Telegram bot is not specified');
     }
   }
 
   async initialize(): Promise<void> {
     if (!TelegramBot) {
-      throw new Error('Библиотека node-telegram-bot-api не установлена. Установите ее через npm install node-telegram-bot-api');
+      throw new Error('Library node-telegram-bot-api is not installed. Install it via npm install node-telegram-bot-api');
     }
 
     try {
@@ -34,7 +34,7 @@ export class TelegramNotificationProvider extends NotificationProvider {
         polling: true
       };
 
-      // Если указан webhook, используем его
+      // If webhook specified, use it
       if (this.parameters.webhook) {
         options.webHook = {
           host: this.parameters.webhook.host || '0.0.0.0',
@@ -47,46 +47,46 @@ export class TelegramNotificationProvider extends NotificationProvider {
       this.bot = new TelegramBot(this.parameters.token, options);
       this.isInitialized = true;
 
-      // Настройка команд
+      // Command setup
       this.bot.setMyCommands([
-        { command: 'start', description: 'Подписаться на уведомления' },
-        { command: 'stop', description: 'Отписаться от уведомлений' },
-        { command: 'status', description: 'Показать статус подписки' }
+        { command: 'start', description: 'Subscribe to notifications' },
+        { command: 'stop', description: 'Unsubscribe from notifications' },
+        { command: 'status', description: 'Show subscription status' }
       ]);
 
-      // Логирование всех сообщений
+      // Log all messages
       this.bot.on('message', (msg: any) => {
         const chatId = msg.chat.id;
-        const username = msg.chat.username || 'без username';
+        const username = msg.chat.username || 'no username';
         const firstName = msg.chat.first_name || '';
         const lastName = msg.chat.last_name || '';
         const text = msg.text || '';
         
-        notificationLogger.info(`[Telegram Bot] Сообщение от ${chatId} (@${username}, ${firstName} ${lastName}): ${text}`);
+        notificationLogger.info(`[Telegram Bot] Message from ${chatId} (@${username}, ${firstName} ${lastName}): ${text}`);
       });
 
-      // Обработка команд
+      // Command handling
       this.bot.onText(/\/start/, async (msg: any) => {
         const chatId = msg.chat.id;
         try {
-          notificationLogger.info(`[Telegram Bot] Обработка команды /start от ${chatId}`);
+          notificationLogger.info(`[Telegram Bot] Processing command /start from ${chatId}`);
           const response = await this.handleCommand('start', chatId.toString());
           this.bot.sendMessage(chatId, response);
         } catch (err) {
-          notificationLogger.error('Ошибка обработки команды /start:', err);
-          this.bot.sendMessage(chatId, 'Произошла ошибка при подписке');
+          notificationLogger.error('Error processing command /start:', err);
+          this.bot.sendMessage(chatId, 'An error occurred during subscription');
         }
       });
 
       this.bot.onText(/\/stop/, async (msg: any) => {
         const chatId = msg.chat.id;
         try {
-          notificationLogger.info(`[Telegram Bot] Обработка команды /stop от ${chatId}`);
+          notificationLogger.info(`[Telegram Bot] Processing command /stop from ${chatId}`);
           const response = await this.handleCommand('stop', chatId.toString());
           this.bot.sendMessage(chatId, response);
         } catch (err) {
-          notificationLogger.error('Ошибка обработки команды /stop:', err);
-          this.bot.sendMessage(chatId, 'Произошла ошибка при отписке');
+          notificationLogger.error('Error processing command /stop:', err);
+          this.bot.sendMessage(chatId, 'An error occurred during unsubscription');
         }
       });
 
@@ -96,72 +96,72 @@ export class TelegramNotificationProvider extends NotificationProvider {
           const subscribers = await this.getSubscribers();
           const isSubscribed = subscribers.some((sub: any) => sub.subscriber_id === chatId.toString());
           if (isSubscribed) {
-            this.bot.sendMessage(chatId, '✅ Вы подписаны на уведомления. Для отписки используйте /stop');
+            this.bot.sendMessage(chatId, '✅ You are subscribed to notifications. Use /stop to unsubscribe');
           } else {
-            this.bot.sendMessage(chatId, '❌ Вы не подписаны на уведомления. Для подписки используйте /start');
+            this.bot.sendMessage(chatId, '❌ You are not subscribed to notifications. Use /start to subscribe');
           }
         } catch (err) {
-          notificationLogger.error('Ошибка обработки команды /status:', err);
-          this.bot.sendMessage(chatId, 'Произошла ошибка при проверке статуса');
+          notificationLogger.error('Error processing command /status:', err);
+          this.bot.sendMessage(chatId, 'An error occurred while checking status');
         }
       });
 
-      // Обработка ошибок
+      // Error handling
       this.bot.on('polling_error', (error: Error) => {
-        notificationLogger.error('Ошибка polling Telegram бота:', error);
+        notificationLogger.error('Telegram bot polling error:', error);
       });
 
-      notificationLogger.info(`Telegram бот ${this.providerId} инициализирован`);
-      notificationLogger.info(`Параметры бота:`, {
-        token: this.parameters.token ? '***' + this.parameters.token.slice(-4) : 'не указан',
+      notificationLogger.info(`Telegram bot ${this.providerId} initialized`);
+      notificationLogger.info(`Bot parameters:`, {
+        token: this.parameters.token ? '***' + this.parameters.token.slice(-4) : 'not specified',
         allowed_subscribers: this.parameters.allowed_subscribers,
-        webhook: this.parameters.webhook ? 'настроен' : 'не настроен'
+        webhook: this.parameters.webhook ? 'configured' : 'not configured'
       });
     } catch (err) {
-      notificationLogger.error('Ошибка инициализации Telegram бота:', err);
+      notificationLogger.error('Telegram bot initialization error:', err);
       throw err;
     }
   }
 
   async sendNotification(message: NotificationMessage): Promise<void> {
     if (!this.isInitialized || !this.bot) {
-      notificationLogger.warn('Telegram бот не инициализирован, пропускаем уведомление');
+      notificationLogger.warn('Telegram bot not initialized, skipping notification');
       return;
     }
 
     try {
       const subscribers = await this.getSubscribers();
       if (subscribers.length === 0) {
-        notificationLogger.info('Нет подписчиков для отправки уведомления');
+        notificationLogger.info('No subscribers to send notification');
         return;
       }
 
       const text = this.formatMessage(message);
       
-      // Отправка каждому подписчику
+      // Send to each subscriber
       for (const subscriber of subscribers) {
         try {
           await this.bot.sendMessage(subscriber.subscriber_id, text, {
             parse_mode: 'Markdown'
           });
         } catch (err: any) {
-          notificationLogger.error(`Ошибка отправки уведомления подписчику ${subscriber.subscriber_id}:`, err.message);
-          // Если пользователь заблокировал бота, отписываем его
+          notificationLogger.error(`Error sending notification to subscriber ${subscriber.subscriber_id}:`, err.message);
+          // If user blocked the bot, unsubscribe them
           if (err.response?.body?.error_code === 403) {
-            notificationLogger.info(`Пользователь ${subscriber.subscriber_id} заблокировал бота, отписываем`);
+            notificationLogger.info(`User ${subscriber.subscriber_id} blocked the bot, unsubscribing`);
             await database.removeNotificationSubscriber(this.providerId, subscriber.subscriber_id);
           }
         }
       }
 
-      notificationLogger.info(`Отправлено уведомление для сервиса ${message.serviceName} подписчикам: ${subscribers.length}`);
+      notificationLogger.info(`Notification sent for service ${message.serviceName} to subscribers: ${subscribers.length}`);
     } catch (err) {
-      notificationLogger.error('Ошибка отправки уведомления:', err);
+      notificationLogger.error('Error sending notification:', err);
     }
   }
 
   /**
-   * Форматирование сообщения для Telegram (переопределяем для Markdown)
+   * Format message for Telegram (override for Markdown)
    */
   protected formatMessage(message: NotificationMessage): string {
     const time = new Date(message.timestamp).toLocaleString('ru-RU');
@@ -169,88 +169,88 @@ export class TelegramNotificationProvider extends NotificationProvider {
     
     switch (message.currentStatus) {
       case 'OK':
-        statusText = '✅ *Восстановлен*';
+        statusText = '✅ *Restored*';
         break;
       case 'WARNING':
-        statusText = '⚠️ *Предупреждение*';
+        statusText = '⚠️ *Warning*';
         break;
       case 'ERROR':
-        statusText = '❌ *Ошибка*';
+        statusText = '❌ *Error*';
         break;
       default:
-        statusText = `*Статус: ${message.currentStatus}*`;
+        statusText = `*Status: ${message.currentStatus}*`;
     }
 
     let details = '';
     if (message.errorMessage) {
-      details += `\n*Ошибка:* ${message.errorMessage}`;
+      details += `\n*Error:* ${message.errorMessage}`;
     }
     if (message.sslDaysUntilExpiry !== undefined) {
       if (message.sslDaysUntilExpiry > 0) {
-        details += `\n*SSL сертификат истекает через* ${message.sslDaysUntilExpiry} дней`;
+        details += `\n*SSL certificate expires in* ${message.sslDaysUntilExpiry} days`;
       } else if (message.sslDaysUntilExpiry === 0) {
-        details += `\n*SSL сертификат истекает сегодня!*`;
+        details += `\n*SSL certificate expires today!*`;
       } else {
-        details += `\n*SSL сертификат истек* ${-message.sslDaysUntilExpiry} дней назад`;
+        details += `\n*SSL certificate expired* ${-message.sslDaysUntilExpiry} days ago`;
       }
     }
 
     return `📡 *${message.serviceName}*\n` +
            `${statusText}\n` +
-           `*Предыдущий статус:* ${message.previousStatus}\n` +
-           `*Время:* ${time}` +
+           `*Previous status:* ${message.previousStatus}\n` +
+           `*Time:* ${time}` +
            details;
   }
 
   /**
-   * Обработка команд от пользователей с проверкой разрешений
+   * Handle commands from users with permission checking
    */
   async handleCommand(command: string, subscriberId: string, args?: string[]): Promise<string> {
-    notificationLogger.info(`[Telegram Bot] Команда: ${command} от пользователя ${subscriberId}`);
+    notificationLogger.info(`[Telegram Bot] Command: ${command} from user ${subscriberId}`);
 
     switch (command) {
       case 'start':
-        // Проверяем, разрешен ли пользователь
+        // Check if user is allowed
         if (this.parameters.allowed_subscribers &&
             Array.isArray(this.parameters.allowed_subscribers)) {
 
-          notificationLogger.info(`[Telegram Bot] Проверка разрешений: allowed_subscribers =`, this.parameters.allowed_subscribers);
+          notificationLogger.info(`[Telegram Bot] Checking permissions: allowed_subscribers =`, this.parameters.allowed_subscribers);
           const allowedIds = this.parameters.allowed_subscribers.map(id => id.toString());
           const subscriberIdStr = subscriberId.toString();
-          notificationLogger.info(`[Telegram Bot] Сравниваем: ${subscriberIdStr} с разрешенными:`, allowedIds);
+          notificationLogger.info(`[Telegram Bot] Comparing: ${subscriberIdStr} with allowed:`, allowedIds);
 
           if (!allowedIds.includes(subscriberIdStr)) {
-            notificationLogger.info(`[Telegram Bot] Доступ запрещен для пользователя ${subscriberIdStr}`);
-            return '⛔ Доступ запрещен. Вы не в списке разрешенных пользователей.';
+            notificationLogger.info(`[Telegram Bot] Access denied for user ${subscriberIdStr}`);
+            return '⛔ Access denied. You are not in the allowed users list.';
           }
-          notificationLogger.info(`[Telegram Bot] Пользователь ${subscriberIdStr} разрешен`);
+          notificationLogger.info(`[Telegram Bot] User ${subscriberIdStr} allowed`);
         } else {
-          notificationLogger.info(`[Telegram Bot] allowed_subscribers не указан или не массив, доступ открыт для всех`);
+          notificationLogger.info(`[Telegram Bot] allowed_subscribers not specified or not an array, access open to all`);
         }
 
         await database.addNotificationSubscriber(this.providerId, subscriberId);
-        notificationLogger.info(`[Telegram Bot] Пользователь ${subscriberId} подписан на уведомления`);
-        return '✅ Вы подписались на уведомления о изменении статуса сервисов. Для отписки используйте /stop';
+        notificationLogger.info(`[Telegram Bot] User ${subscriberId} subscribed to notifications`);
+        return '✅ You have subscribed to service status change notifications. Use /stop to unsubscribe';
 
       case 'stop':
         await database.removeNotificationSubscriber(this.providerId, subscriberId);
-        notificationLogger.info(`[Telegram Bot] Пользователь ${subscriberId} отписан от уведомлений`);
-        return '✅ Вы отписались от уведомлений. Для подписки используйте /start';
+        notificationLogger.info(`[Telegram Bot] User ${subscriberId} unsubscribed from notifications`);
+        return '✅ You have unsubscribed from notifications. Use /start to subscribe';
 
       default:
-        // Пробуем базовую реализацию для других команд
-        notificationLogger.info(`[Telegram Bot] Неизвестная команда ${command}, передаем в базовый класс`);
+        // Try base implementation for other commands
+        notificationLogger.info(`[Telegram Bot] Unknown command ${command}, passing to base class`);
         return super.handleCommand(command, subscriberId, args);
     }
   }
 
   /**
-   * Остановка бота
+   * Stop the bot
    */
   async shutdown(): Promise<void> {
     if (this.bot) {
       this.bot.stopPolling();
-      notificationLogger.info(`Telegram бот ${this.providerId} остановлен`);
+      notificationLogger.info(`Telegram bot ${this.providerId} stopped`);
     }
   }
 }

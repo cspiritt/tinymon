@@ -13,44 +13,44 @@ class Scheduler {
   }
 
   start(): void {
-    schedulerLogger.debug('Запуск планировщика проверок...');
+    schedulerLogger.debug('Starting check scheduler...');
     this.scheduleAllServices();
 
-    // Также планируем перезагрузку конфигурации каждые 5 минут
+    // Also schedule configuration reload every 5 minutes
     cron.schedule('*/5 * * * *', () => {
       this.reloadConfiguration();
     });
   }
 
   private scheduleAllServices(): void {
-    // Останавливаем существующие задачи
+    // Stop existing tasks
     this.stopAll();
 
     const services = config.getServices();
     for (const service of services) {
       this.scheduleService(service);
     }
-    schedulerLogger.debug(`Запланировано проверок: ${services.length}`);
+    schedulerLogger.debug(`Scheduled checks: ${services.length}`);
   }
 
   private scheduleService(service: Service): void {
     let cronExpression: string;
     
     if (service.type === 'ssl') {
-      // Для SSL сервисов используем время check_at для ежедневной проверки
+      // For SSL services use check_at time for daily check
       cronExpression = this.generateCronExpressionForSSL(service);
-      schedulerLogger.debug(`SSL сервис ${service.name}: проверка по расписанию ${cronExpression} (${service.check_at})`);
+      schedulerLogger.debug(`SSL service ${service.name}: scheduled check ${cronExpression} (${service.check_at})`);
     } else {
-      // Конвертируем интервал в секундах в cron-выражение
-      // Например, каждые 30 секунд: */30 * * * * *
-      // Но node-cron поддерживает секунды (шесть полей)
+      // Convert interval in seconds to cron expression
+      // For example, every 30 seconds: */30 * * * * *
+      // But node-cron supports seconds (six fields)
       const interval = service.interval;
       if (interval < 10) {
-        schedulerLogger.warn(`Слишком маленький интервал для сервиса ${service.name}: ${interval} секунд. Минимум 10 секунд.`);
+        schedulerLogger.warn(`Interval too small for service ${service.name}: ${interval} seconds. Minimum 10 seconds.`);
         return;
       }
 
-      // Создаем cron-выражение: каждые N секунд
+      // Create cron expression: every N seconds
       cronExpression = `*/${interval} * * * * *`;
     }
 
@@ -62,37 +62,37 @@ class Scheduler {
 
     this.jobs.set(service.id, job);
 
-    // Немедленно выполняем первую проверку
+    // Immediately perform first check
     setTimeout(() => {
       this.executeCheck(service);
     }, 1000);
   }
   
   private generateCronExpressionForSSL(service: Service): string {
-    // Формат check_at: "HH:MM", по умолчанию "00:00"
+    // Format check_at: "HH:MM", default "00:00"
     const checkAt = service.check_at || '00:00';
     const [hourStr, minuteStr] = checkAt.split(':');
     const hour = parseInt(hourStr, 10);
     const minute = parseInt(minuteStr, 10);
     
-    // Проверяем валидность
+    // Validate
     if (isNaN(hour) || hour < 0 || hour > 23 || isNaN(minute) || minute < 0 || minute > 59) {
-      schedulerLogger.warn(`Некорректное время check_at для SSL сервиса ${service.name}: ${checkAt}, используем 00:00`);
+      schedulerLogger.warn(`Invalid check_at time for SSL service ${service.name}: ${checkAt}, using 00:00`);
       return '0 0 * * *';
     }
     
-    // Cron-выражение: minute hour * * * (пять полей, без секунд)
+    // Cron expression: minute hour * * * (five fields, no seconds)
     return `${minute} ${hour} * * *`;
   }
 
   private async executeCheck(service: Service): Promise<void> {
-    schedulerLogger.debug(`Проверка сервиса: ${service.name} (${service.address})`);
+    schedulerLogger.debug(`Checking service: ${service.name} (${service.address})`);
     try {
       const result = await checker.checkService(service);
       const statusEmoji = result.success ? '✅' : '❌';
-      schedulerLogger.debug(`${statusEmoji} ${service.name}: ${result.status} (ошибок: ${result.failureCount})`);
+      schedulerLogger.debug(`${statusEmoji} ${service.name}: ${result.status} (failures: ${result.failureCount})`);
     } catch (err) {
-      schedulerLogger.error(`Ошибка при проверке сервиса ${service.name}:`, (err as Error).message);
+      schedulerLogger.error(`Error checking service ${service.name}:`, (err as Error).message);
     }
   }
 
@@ -112,7 +112,7 @@ class Scheduler {
   }
 
   private async reloadConfiguration(): Promise<void> {
-    schedulerLogger.debug('Перезагрузка конфигурации...');
+    schedulerLogger.debug('Reloading configuration...');
     await config.load();
     database.syncServices(config.getServices());
     this.scheduleAllServices();

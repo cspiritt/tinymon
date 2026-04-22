@@ -7,7 +7,7 @@ export interface UpdateServiceStatusResult {
 }
 
 /**
- * Абстрактный класс адаптера базы данных
+ * Abstract database adapter class
  */
 export abstract class DatabaseAdapter {
   protected config: DatabaseConfig;
@@ -19,40 +19,40 @@ export abstract class DatabaseAdapter {
   }
 
   /**
-   * Подключение к базе данных
+   * Connect to database
    */
   abstract connect(): Promise<void>;
 
   /**
-   * Создание таблиц (если не существуют)
+   * Create tables (if they don't exist)
    */
   abstract createTables(): Promise<void>;
 
   /**
-   * Синхронизация сервисов из конфигурации
-   * @param services - массив сервисов
+   * Sync services from configuration
+   * @param services - array of services
    */
   abstract syncServices(services: Service[]): Promise<void>;
 
   /**
-   * Получить все сервисы с текущим состоянием
+   * Get all services with current state
    */
   abstract getAllServices(): Promise<any[]>;
 
   /**
-   * Получить сервис по ID
-   * @param id - идентификатор сервиса
+   * Get service by ID
+   * @param id - service identifier
    */
   abstract getService(id: string): Promise<any>;
 
   /**
-   * Обновить статус сервиса после проверки
-   * @param serviceId - идентификатор сервиса
-   * @param success - успешность проверки
-   * @param responseTime - время ответа в мс
-   * @param errorMessage - сообщение об ошибке
-   * @param options - дополнительные опции (для SSL)
-   * @returns объект с failureCount и lastStatus
+   * Update service status after check
+   * @param serviceId - service identifier
+   * @param success - check success
+   * @param responseTime - response time in ms
+   * @param errorMessage - error message
+   * @param options - additional options (for SSL)
+   * @returns object with failureCount and lastStatus
    */
   abstract updateServiceStatus(
     serviceId: string,
@@ -66,28 +66,28 @@ export abstract class DatabaseAdapter {
   ): Promise<UpdateServiceStatusResult>;
 
   /**
-   * Получить историю проверок для сервиса
-   * @param serviceId - идентификатор сервиса
-   * @param limit - количество записей
+   * Get check history for service
+   * @param serviceId - service identifier
+   * @param limit - number of records
    */
   abstract getServiceChecks(serviceId: string, limit?: number): Promise<any[]>;
 
   /**
-   * Получить статистику за период
-   * @param periodHours - период в часах
+   * Get statistics for period
+   * @param periodHours - period in hours
    */
   abstract getStats(periodHours?: number): Promise<any>;
 
   /**
-   * Закрыть соединение с БД
+   * Close database connection
    */
   abstract close(): Promise<void>;
 
-  // Методы для уведомлений
+  // Methods for notifications
   abstract getServiceLastNotifiedStatus(serviceId: string): Promise<string>;
   abstract updateServiceLastNotifiedStatus(serviceId: string, status: string): Promise<void>;
   
-  // Методы для подписчиков на уведомления
+  // Methods for notification subscribers
   abstract addNotificationSubscriber(providerId: string, subscriberId: string, data?: any): Promise<void>;
   abstract removeNotificationSubscriber(providerId: string, subscriberId: string): Promise<void>;
   abstract getNotificationSubscribers(providerId: string): Promise<any[]>;

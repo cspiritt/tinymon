@@ -555,7 +555,7 @@ body {
     }
 }
 
-/* Аутентификация */
+/* Authentication */
 .header-top {
     display: flex;
     justify-content: space-between;

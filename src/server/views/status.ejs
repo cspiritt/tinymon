@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title %></title>
     <link rel="stylesheet" href="/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="/vendor/inter/inter.css">
 </head>
 <body>
     <div class="container">
@@ -14,12 +14,12 @@
             <div class="header-top">
                 <div>
                     <h1><i class="fas fa-heartbeat"></i> TinyMon</h1>
-                    <p class="subtitle">Мониторинг доступности сервисов</p>
+                    <p class="subtitle">Service availability monitoring</p>
                 </div>
                 <% if (user) { %>
                 <div class="user-info">
                     <i class="fas fa-user"></i> <%= user %>
-                    <a href="/logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Выйти</a>
+                    <a href="/logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
                 <% } %>
             </div>
@@ -27,7 +27,7 @@
 
         <div class="stats-cards">
             <div class="stat-card total">
-                <h3>Всего сервисов</h3>
+                <h3>Total services</h3>
                 <p class="stat-number"><%= total %></p>
             </div>
             <div class="stat-card ok">
@@ -46,10 +46,10 @@
 
         <main class="main">
             <div class="services-header">
-                <h2><i class="fas fa-server"></i> Состояние сервисов</h2>
+                <h2><i class="fas fa-server"></i> Service status</h2>
                 <div class="last-update">
-                    Последнее обновление: <span id="last-update-time"><%= new Date().toLocaleTimeString() %></span>
-                    <button id="refresh-btn" class="refresh-btn"><i class="fas fa-sync-alt"></i> Обновить</button>
+                    Last update: <span id="last-update-time"><%= new Date().toLocaleTimeString() %></span>
+                    <button id="refresh-btn" class="refresh-btn"><i class="fas fa-sync-alt"></i> Refresh</button>
                 </div>
             </div>
 
@@ -57,8 +57,8 @@
                 <% if (groups.length === 0) { %>
                 <div class="no-services">
                     <i class="fas fa-inbox"></i>
-                    <p>Нет настроенных сервисов для мониторинга.</p>
-                    <p>Добавьте файлы конфигурации в папку <code>settings.d</code></p>
+                    <p>No services configured for monitoring.</p>
+                    <p>Add configuration files to the <code>settings.d</code> folder</p>
                 </div>
                 <% } else { %>
                     <% groups.forEach(group => { %>
@@ -68,7 +68,7 @@
                                 <i class="fas fa-chevron-down group-chevron"></i>
                                 <h3><%= group.name %></h3>
                                 <div class="group-stats">
-                                    <span class="group-stat total"><%= group.services.length %> сервисов</span>
+                                    <span class="group-stat total"><%= group.services.length %> services</span>
                                     <% if (group.okCount > 0) { %>
                                         <span class="group-stat ok"><i class="fas fa-check-circle"></i> <%= group.okCount %></span>
                                     <% } %>
@@ -85,14 +85,14 @@
                             <table class="services-table">
                                 <thead>
                                     <tr>
-                                        <th>Сервис</th>
-                                        <th>Тип</th>
-                                        <th>Адрес</th>
-                                        <th>Интервал</th>
-                                        <th>Статус</th>
-                                        <th>Неудачи</th>
-                                        <th>Последняя проверка</th>
-                                        <th>Действия</th>
+                                        <th>Service</th>
+                                        <th>Type</th>
+                                        <th>Address</th>
+                                        <th>Interval</th>
+                                        <th>Status</th>
+                                        <th>Failures</th>
+                                        <th>Last check</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -104,15 +104,15 @@
                                         </td>
                                         <td class="service-type"><%= service.type.toUpperCase() %></td>
                                         <td class="service-address"><%= service.address %></td>
-                                        <td class="service-interval"><%= service.interval %> сек</td>
+                                        <td class="service-interval"><%= service.interval %> sec</td>
                                         <td class="service-status">
                                             <span class="status-badge status-<%= service.status.toLowerCase() %>">
                                                 <%= service.status %>
                                                 <% if (service.type === 'ssl' && service.ssl_days_until_expiry !== null) { %>
                                                     <% if (service.ssl_days_until_expiry <= 0) { %>
-                                                        (<%= Math.abs(service.ssl_days_until_expiry) %> дн. назад)
+                                                        (<%= Math.abs(service.ssl_days_until_expiry) %> days ago)
                                                     <% } else { %>
-                                                        (<%= service.ssl_days_until_expiry %> дн.)
+                                                        (<%= service.ssl_days_until_expiry %> days)
                                                     <% } %>
                                                 <% } %>
                                             </span>
@@ -124,14 +124,14 @@
                                             <% if (service.lastCheck) { %>
                                                 <%= new Date(service.lastCheck).toLocaleString() %>
                                             <% } else { %>
-                                                Никогда
+                                                Never
                                             <% } %>
                                         </td>
                                         <td class="service-actions">
-                                            <button class="action-btn check-btn" title="Проверить сейчас">
+                                            <button class="action-btn check-btn" title="Check now">
                                                 <i class="fas fa-bolt"></i>
                                             </button>
-                                            <button class="action-btn history-btn" title="История проверок">
+                                            <button class="action-btn history-btn" title="Check history">
                                                 <i class="fas fa-history"></i>
                                             </button>
                                         </td>
@@ -147,21 +147,21 @@
         </main>
 
         <footer class="footer">
-            <p>TinyMon &copy; <%= new Date().getFullYear() %> | Мониторинг IP/HTTP/HTTPS ресурсов</p>
-            <p class="version">Версия 1.0.0 | Node.js <%= process.version %></p>
+            <p>TinyMon &copy; <%= new Date().getFullYear() %> | IP/HTTP/HTTPS resource monitoring</p>
+            <p class="version">Version 1.0.0 | Node.js <%= process.version %></p>
         </footer>
     </div>
 
-    <!-- Модальное окно для истории проверок -->
+    <!-- Check history modal -->
     <div id="history-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>История проверок</h3>
+                <h3>Check history</h3>
                 <button class="close-modal">&times;</button>
             </div>
             <div class="modal-body">
                 <div id="history-content">
-                    <!-- Контент будет загружен через JavaScript -->
+                    <!-- Content will be loaded via JavaScript -->
                 </div>
             </div>
         </div>

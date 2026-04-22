@@ -73,21 +73,21 @@ class MonitoringUI {
     }
 
     /**
-     * Обёртка для fetch с обработкой ошибок аутентификации
+     * Fetch wrapper with authentication error handling
      */
     private async apiFetch(url: string, options?: RequestInit): Promise<Response> {
         try {
             const response = await fetch(url, options);
             
-            // Если получили 401, перенаправляем на страницу логина
+            // If we get 401, redirect to login page
             if (response.status === 401) {
                 window.location.href = '/login';
-                throw new Error('Требуется аутентификация');
+                throw new Error('Authentication required');
             }
             
             return response;
         } catch (error) {
-            console.error('Ошибка сети:', error);
+            console.error('Network error:', error);
             throw error;
         }
     }
@@ -110,13 +110,13 @@ class MonitoringUI {
                 
                 const isCollapsed = header.classList.contains('collapsed');
                 
-                // Переключаем состояние
+                // Toggle state
                 header.classList.toggle('collapsed');
                 header.classList.toggle('expanded');
                 groupBody.classList.toggle('collapsed');
                 groupBody.classList.toggle('expanded');
-                
-                // Поворачиваем шеврон
+
+                // Rotate the chevron
                 const chevron = header.querySelector('.group-chevron');
                 if (chevron && chevron instanceof HTMLElement) {
                     chevron.style.transform = isCollapsed ? 'rotate(0deg)' : 'rotate(-90deg)';
@@ -131,7 +131,7 @@ class MonitoringUI {
         this.lastUpdateTime.textContent = now.toLocaleTimeString();
     }
 
-    // Обновление данных через API
+    // Update data via API
     public async refreshData(silent: boolean = false): Promise<void> {
         try {
             const response = await this.apiFetch('/api/status');
@@ -142,14 +142,14 @@ class MonitoringUI {
                 this.updateStatsCards(data.data);
                 this.updateLastUpdateTime();
                 if (!silent) {
-                    this.showNotification({ message: 'Данные обновлены', type: 'success' });
+                    this.showNotification({ message: 'Data updated', type: 'success' });
                 }
             }
         } catch (error) {
-            console.error('Ошибка при обновлении данных:', error);
+            console.error('Error updating data:', error);
             if (!silent) {
                 this.showNotification({ 
-                    message: 'Ошибка при обновлении данных', 
+                    message: 'Error updating data', 
                     type: 'error' 
                 });
             }
@@ -161,20 +161,20 @@ class MonitoringUI {
             const row = document.querySelector(`.service-row[data-service-id="${service.id}"]`);
             if (!row) return;
 
-            // Обновление статуса
+            // Update status
             const statusBadge = row.querySelector('.status-badge');
             if (statusBadge) {
                 statusBadge.className = `status-badge status-${service.status.toLowerCase()}`;
                 statusBadge.textContent = service.status;
             }
 
-            // Обновление счетчика неудач
+            // Update failure count
             const failureCount = row.querySelector('.failure-count');
             if (failureCount) {
                 failureCount.textContent = service.failureCount.toString();
             }
 
-            // Обновление времени последней проверки
+            // Update last check time
             const lastCheckCell = row.querySelector('.service-last-check');
             if (lastCheckCell && service.lastCheck) {
                 lastCheckCell.textContent = new Date(service.lastCheck * 1000).toLocaleString();
@@ -188,7 +188,7 @@ class MonitoringUI {
         const warningCount = services.filter(s => s.status === 'WARNING').length;
         const errorCount = services.filter(s => s.status === 'ERROR').length;
 
-        // Обновляем DOM
+        // Update DOM
         const totalElement = document.querySelector('.stat-card.total .stat-number');
         const okElement = document.querySelector('.stat-card.ok .stat-number');
         const warningElement = document.querySelector('.stat-card.warning .stat-number');
@@ -212,9 +212,9 @@ class MonitoringUI {
                 console.log('History API error:', data.error);
             }
         } catch (error) {
-            console.error('Ошибка при загрузке истории:', error);
+            console.error('Error loading history:', error);
             this.showNotification({
-                message: 'Ошибка при загрузке истории',
+                message: 'Error loading history',
                 type: 'error'
             });
         }
@@ -228,27 +228,27 @@ class MonitoringUI {
             return;
         }
 
-        // Обновляем заголовок
+        // Update header
         const header = modal.querySelector('.modal-header h3');
         if (header) {
-            header.textContent = `История проверок: ${serviceName}`;
+            header.textContent = `Check history: ${serviceName}`;
         }
 
-        // Генерируем контент
+        // Generate content
         let html = '';
 
         if (checks.length === 0) {
-            html = '<p class="no-history">История проверок отсутствует</p>';
+            html = '<p class="no-history">No check history available</p>';
         } else {
             html = `
                 <div class="history-table">
                     <table>
                         <thead>
                             <tr>
-                                <th>Время</th>
-                                <th>Статус</th>
-                                <th>Время отклика</th>
-                                <th>Ошибка</th>
+                                <th>Time</th>
+                                <th>Status</th>
+                                <th>Response time</th>
+                                <th>Error</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -257,10 +257,10 @@ class MonitoringUI {
                                     <td>${new Date(check.checkedAt * 1000).toLocaleString()}</td>
                                     <td>
                                         <span class="history-status status-${check.status}">
-                                            ${check.status === 'success' ? 'Успех' : 'Ошибка'}
+                                            ${check.status === 'success' ? 'Success' : 'Error'}
                                         </span>
                                     </td>
-                                    <td>${check.responseTime ? check.responseTime + 'мс' : '—'}</td>
+                                    <td>${check.responseTime ? check.responseTime + 'ms' : '—'}</td>
                                     <td class="error-message">${check.errorMessage || '—'}</td>
                                 </tr>
                             `).join('')}
@@ -282,23 +282,23 @@ class MonitoringUI {
             const data = await response.json() as APIResponse<any>;
 
             if (data.success) {
-                this.showNotification({ 
-                    message: `Проверка сервиса "${serviceName}" выполнена`, 
-                    type: 'success' 
+                this.showNotification({
+                    message: `Service check "${serviceName}" completed`,
+                    type: 'success'
                 });
-                // Обновляем данные через 1 секунду
+                // Update data after 1 second
                 setTimeout(() => this.refreshData(true), 1000);
             } else {
-                this.showNotification({ 
-                    message: `Ошибка при проверке: ${data.error}`, 
-                    type: 'error' 
+                this.showNotification({
+                    message: `Error during check: ${data.error}`,
+                    type: 'error'
                 });
             }
         } catch (error) {
-            console.error('Ошибка при принудительной проверке:', error);
-            this.showNotification({ 
-                message: 'Ошибка при принудительной проверке', 
-                type: 'error' 
+            console.error('Error during forced check:', error);
+            this.showNotification({
+                message: 'Error during forced check',
+                type: 'error'
             });
         }
     }
@@ -306,7 +306,7 @@ class MonitoringUI {
     private showNotification(options: NotificationOptions): void {
         const { message, type = 'info' } = options;
 
-        // Создаем элемент уведомления
+        // Create notification element
         const notification = document.createElement('div');
         notification.className = `notification notification-${type}`;
         notification.innerHTML = `
@@ -314,7 +314,7 @@ class MonitoringUI {
             <button class="notification-close">&times;</button>
         `;
 
-        // Добавляем стили
+        // Add styles
         notification.style.cssText = `
             position: fixed;
             top: 20px;
@@ -341,14 +341,14 @@ class MonitoringUI {
             notification.style.background = '#3498db';
         }
 
-        // Кнопка закрытия
+        // Close button
         const closeBtn = notification.querySelector('.notification-close');
         closeBtn?.addEventListener('click', () => {
             notification.style.animation = 'slideOut 0.3s ease';
             setTimeout(() => notification.remove(), 300);
         });
 
-        // Автоматическое закрытие через 5 секунд
+        // Auto-close after 5 seconds
         setTimeout(() => {
             if (notification.parentNode) {
                 notification.style.animation = 'slideOut 0.3s ease';
@@ -356,10 +356,10 @@ class MonitoringUI {
             }
         }, 5000);
 
-        // Добавляем в DOM
+        // Add to DOM
         document.body.appendChild(notification);
 
-        // Добавляем стили анимации если их нет
+        // Add animation styles if missing
         if (!document.querySelector('style[data-notification-animations]')) {
             const style = document.createElement('style');
             style.setAttribute('data-notification-animations', 'true');
@@ -390,12 +390,12 @@ class MonitoringUI {
     }
 
     private setupEventListeners(): void {
-        // Кнопка обновления
+        // Refresh button
         this.refreshBtn?.addEventListener('click', () => {
             this.refreshData(false);
         });
 
-        // Модальное окно
+        // Modal window
         this.closeModalBtn?.addEventListener('click', () => {
             this.modal?.classList.remove('active');
         });
@@ -406,7 +406,7 @@ class MonitoringUI {
             }
         });
 
-        // Обработчики для кнопок в строках сервисов
+        // Handlers for service row buttons
         this.serviceRows.forEach((row: HTMLElement) => {
             const serviceId = row.getAttribute('data-service-id') || '';
             const serviceName = row.querySelector('.service-name')?.textContent?.trim() || '';
@@ -427,7 +427,7 @@ class MonitoringUI {
             });
         });
 
-        // Добавляем стили для истории если их нет
+        // Add history styles if missing
         if (!document.querySelector('style[data-history-styles]')) {
             const historyStyles = document.createElement('style');
             historyStyles.setAttribute('data-history-styles', 'true');
@@ -483,12 +483,12 @@ class MonitoringUI {
     }
 
     private setupAutoRefresh(): void {
-        // Автоматическое обновление каждые 30 секунд
+        // Auto-refresh every 30 seconds
         setInterval(() => this.refreshData(true), 30000);
     }
 }
 
-// Инициализация при загрузке DOM
+// Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
     const ui = new MonitoringUI();
     ui.init();

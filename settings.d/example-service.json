@@ -4,5 +4,5 @@
   "address": "https://www.google.com",
   "interval": 30,
   "timeout": 3000,
-  "group": "Поисковые системы"
+  "group": "Search Engines"
 }

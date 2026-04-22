@@ -23,9 +23,9 @@ class ConfigLoader {
       const data = await fs.readFile(settingsPath, 'utf8');
       this.settings = JSON.parse(data);
 
-      // Обратная совместимость: если database - строка, преобразуем в новую структуру
+      // Backward compatibility: if database is a string, convert to new structure
       if (typeof this.settings.database === 'string') {
-        configLogger.info('Обновление структуры database для обратной совместимости');
+        configLogger.info('Updating database structure for backward compatibility');
         this.settings.database = {
           type: 'sqlite',
           sqlite: {
@@ -48,23 +48,23 @@ class ConfigLoader {
         };
       }
       
-      // Устанавливаем notification_providers по умолчанию, если не указано
+      // Set notification_providers default if not specified
       if (!this.settings.notification_providers) {
         this.settings.notification_providers = [];
       }
 
-      // Устанавливаем users по умолчанию, если не указано
+      // Set users default if not specified
       if (!this.settings.users) {
         this.settings.users = [];
       }
 
-      configLogger.info('Настройки загружены:', this.settings);
-      configLogger.info(`Загружено пользователей: ${this.settings.users.length}`);
-      // Устанавливаем уровень логирования
+      configLogger.info('Settings loaded:', this.settings);
+      configLogger.info(`Users loaded: ${this.settings.users.length}`);
+      // Set logging level
       Logger.setLogLevel(this.settings.logLevel);
     } catch (err) {
-      configLogger.error('Ошибка загрузки settings.json:', (err as Error).message);
-      // Используем настройки по умолчанию
+      configLogger.error('Error loading settings.json:', (err as Error).message);
+      // Use default settings
       this.settings = {
         bindAddress: '0.0.0.0',
         port: 3000,
@@ -95,9 +95,9 @@ class ConfigLoader {
         users: [],
         notification_providers: []
       };
-      // Устанавливаем уровень логирования
+      // Set logging level
       Logger.setLogLevel(this.settings.logLevel);
-      // Создаем файл с настройками по умолчанию
+      // Create file with default settings
       await fs.writeFile(settingsPath, JSON.stringify(this.settings, null, 2));
     }
   }
@@ -113,57 +113,57 @@ class ConfigLoader {
         try {
           const data = await fs.readFile(filePath, 'utf8');
           const service = JSON.parse(data);
-          // Валидация обязательных полей
+          // Validation of required fields
           if (!service.name || !service.type || !service.address) {
-            configLogger.warn(`Пропущен некорректный сервис в ${file}: отсутствуют обязательные поля`);
+            configLogger.warn(`Skipped invalid service in ${file}: missing required fields`);
             continue;
           }
           
-          // Для SSL сервисов устанавливаем значения по умолчанию
+          // Set default values for SSL services
           if (service.type === 'ssl') {
-            // Интервал по умолчанию: 24 часа (86400 секунд)
+            // Default interval: 24 hours (86400 seconds)
             if (!service.interval) {
               service.interval = 86400;
             }
-            // Предупреждение по умолчанию: за 30 дней до экспирации
+            // Default warning: 30 days before expiration
             if (service.warn_before === undefined) {
               service.warn_before = 30;
             }
-            // Время проверки по умолчанию: 00:00
+            // Default check time: 00:00
             if (!service.check_at) {
               service.check_at = '00:00';
             }
-            // Проверяем формат времени
+            // Validate time format
             if (service.check_at && !/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(service.check_at)) {
-              configLogger.warn(`Некорректный формат check_at в ${file}: ${service.check_at}, используем 00:00`);
+              configLogger.warn(`Invalid check_at format in ${file}: ${service.check_at}, using 00:00`);
               service.check_at = '00:00';
             }
-            // Адрес должен начинаться с https://
+            // Address must start with https://
             if (!service.address.startsWith('https://')) {
-              configLogger.warn(`Адрес SSL сервиса в ${file} должен начинаться с https://: ${service.address}`);
+              configLogger.warn(`SSL service address in ${file} must start with https://: ${service.address}`);
             }
           } else if (!service.interval) {
-            // Для других типов interval обязателен
-            configLogger.warn(`Пропущен некорректный сервис в ${file}: отсутствует interval`);
+            // For other types, interval is required
+            configLogger.warn(`Skipped invalid service in ${file}: missing interval`);
             continue;
           }
           
-          // Добавляем идентификатор на основе имени файла
+          // Add identifier based on file name
           service.id = path.basename(file, '.json');
           this.services.push(service as Service);
         } catch (err) {
-          configLogger.error(`Ошибка чтения файла ${file}:`, (err as Error).message);
+          configLogger.error(`Error reading file ${file}:`, (err as Error).message);
         }
       }
-      configLogger.info(`Загружено сервисов: ${this.services.length}`);
+      configLogger.info(`Services loaded: ${this.services.length}`);
     } catch (err) {
       const error = err as NodeJS.ErrnoException;
-      // Если папка не существует, создаем её
+      // If folder doesn't exist, create it
       if (error.code === 'ENOENT') {
         await fs.mkdir(servicesDir, { recursive: true });
-        configLogger.info('Создана папка settings.d');
+        configLogger.info('Created folder settings.d');
       } else {
-        configLogger.error('Ошибка чтения папки services:', error.message);
+        configLogger.error('Error reading services folder:', error.message);
       }
     }
   }

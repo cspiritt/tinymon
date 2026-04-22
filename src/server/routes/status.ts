@@ -8,21 +8,21 @@ import { routesLogger } from '../utils/logger';
 const router: Router = express.Router();
 
 /**
- * Группирует сервисы по группам
+ * Groups services by groups
  */
 function groupServices(services: any[]): ServiceGroup[] {
   const groupsMap = new Map<string, any[]>();
   
-  // Распределяем сервисы по группам
+  // Distribute services by groups
   services.forEach(service => {
-    const groupName = service.group || 'Без группы';
+    const groupName = service.group || 'Ungrouped';
     if (!groupsMap.has(groupName)) {
       groupsMap.set(groupName, []);
     }
     groupsMap.get(groupName)!.push(service);
   });
   
-  // Преобразуем в массив ServiceGroup
+  // Convert to ServiceGroup array
   const groups: ServiceGroup[] = [];
   groupsMap.forEach((services, groupName) => {
     const okCount = services.filter(s => s.status === 'OK').length;
@@ -40,7 +40,7 @@ function groupServices(services: any[]): ServiceGroup[] {
     });
   });
   
-  // Сортируем группы: сначала с ошибками, затем с предупреждениями, затем OK
+  // Sort groups: errors first, then warnings, then OK
   groups.sort((a, b) => {
     if (a.errorCount !== b.errorCount) return b.errorCount - a.errorCount;
     if (a.warningCount !== b.warningCount) return b.warningCount - a.warningCount;
@@ -50,19 +50,19 @@ function groupServices(services: any[]): ServiceGroup[] {
   return groups;
 }
 
-// Главная страница - статус всех сервисов
+// Main page - status of all services
 router.get('/', async (req: Request, res: Response) => {
   try {
     const services = await database.getAllServices();
     const user = (req as any).user;
 
-    // Добавляем вычисляемый статус для каждого сервиса
+    // Add calculated status for each service
     const servicesWithStatus = services.map(service => {
       let status = 'unknown';
       
-      // Для SSL сервисов учитываем дни до истечения сертификата
+      // For SSL services, consider certificate expiration days
       if (service.type === 'ssl') {
-        // Если есть ошибки соединения, используем стандартную логику
+        // If there are connection errors, use standard logic
         if (service.failure_count > 0) {
           if (service.failure_count < 3) {
             status = 'WARNING';
@@ -70,7 +70,7 @@ router.get('/', async (req: Request, res: Response) => {
             status = 'ERROR';
           }
         } else if (service.ssl_days_until_expiry !== null) {
-          // Определяем статус на основе дней до истечения
+          // Determine status based on days until expiration
           const warnBefore = service.warn_before || 30;
           if (service.ssl_days_until_expiry <= 0) {
             status = 'ERROR';
@@ -80,11 +80,11 @@ router.get('/', async (req: Request, res: Response) => {
             status = 'OK';
           }
         } else {
-          // Сертификат ещё не проверялся
+          // Certificate not yet checked
           status = 'unknown';
         }
       } else {
-        // Стандартная логика для HTTP/IP сервисов
+        // Standard logic for HTTP/IP services
         if (service.failure_count === 0) {
           status = 'OK';
         } else if (service.failure_count < 3) {
@@ -104,8 +104,8 @@ router.get('/', async (req: Request, res: Response) => {
     const groups = groupServices(servicesWithStatus);
     
     res.render('status', {
-      title: 'TinyMon - Мониторинг сервисов',
-      services: servicesWithStatus, // для обратной совместимости
+      title: 'TinyMon - Service Monitoring',
+      services: servicesWithStatus, // for backward compatibility
       groups: groups,
       total: services.length,
       okCount: servicesWithStatus.filter(s => s.status === 'OK').length,
@@ -114,12 +114,12 @@ router.get('/', async (req: Request, res: Response) => {
       user: user
     });
   } catch (err) {
-    routesLogger.error('Ошибка при получении сервисов:', err);
-    res.status(500).render('error', { message: 'Ошибка при получении данных' });
+    routesLogger.error('Error getting services:', err);
+    res.status(500).render('error', { message: 'Error getting data' });
   }
 });
 
-// JSON API для получения статуса всех сервисов
+// JSON API for getting status of all services
 router.get('/api/status', async (req: Request, res: Response) => {
   try {
     const services = await database.getAllServices();
@@ -127,9 +127,9 @@ router.get('/api/status', async (req: Request, res: Response) => {
     const result = services.map(service => {
       let status = 'unknown';
       
-      // Для SSL сервисов учитываем дни до истечения сертификата
+      // For SSL services, consider certificate expiration days
       if (service.type === 'ssl') {
-        // Если есть ошибки соединения, используем стандартную логику
+        // If there are connection errors, use standard logic
         if (service.failure_count > 0) {
           if (service.failure_count < 3) {
             status = 'WARNING';
@@ -137,7 +137,7 @@ router.get('/api/status', async (req: Request, res: Response) => {
             status = 'ERROR';
           }
         } else if (service.ssl_days_until_expiry !== null) {
-          // Определяем статус на основе дней до истечения
+          // Determine status based on days until expiration
           const warnBefore = service.warn_before || 30;
           if (service.ssl_days_until_expiry <= 0) {
             status = 'ERROR';
@@ -147,11 +147,11 @@ router.get('/api/status', async (req: Request, res: Response) => {
             status = 'OK';
           }
         } else {
-          // Сертификат ещё не проверялся
+          // Certificate not yet checked
           status = 'unknown';
         }
       } else {
-        // Стандартная логика для HTTP/IP сервисов
+        // Standard logic for HTTP/IP services
         if (service.failure_count === 0) {
           status = 'OK';
         } else if (service.failure_count < 3) {
@@ -186,12 +186,12 @@ router.get('/api/status', async (req: Request, res: Response) => {
       timestamp: Date.now()
     });
   } catch (err) {
-    routesLogger.error('Ошибка API статуса:', err);
-    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+    routesLogger.error('Status API error:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
-// API для получения истории проверок конкретного сервиса
+// API for getting check history of specific service
 router.get('/api/service/:id/checks', async (req: Request, res: Response) => {
   const serviceId = req.params.id as string;
   const limit = parseInt(req.query.limit as string) || 10;
@@ -199,7 +199,7 @@ router.get('/api/service/:id/checks', async (req: Request, res: Response) => {
   try {
     const service = await database.getService(serviceId);
     if (!service) {
-      return res.status(404).json({ error: 'Сервис не найден' });
+      return res.status(404).json({ error: 'Service not found' });
     }
 
     const checks = await database.getServiceChecks(serviceId, limit);
@@ -220,18 +220,18 @@ router.get('/api/service/:id/checks', async (req: Request, res: Response) => {
       }
     });
   } catch (err) {
-    routesLogger.error('Ошибка при получении истории проверок:', err);
-    return res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+    routesLogger.error('Error getting check history:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
-// API для принудительной проверки сервиса
+// API for forced service check
 router.post('/api/service/:id/check', async (req: Request, res: Response) => {
   const serviceId = req.params.id as string;
   const service = config.getService(serviceId);
 
   if (!service) {
-    return res.status(404).json({ error: 'Сервис не найден в конфигурации' });
+    return res.status(404).json({ error: 'Service not found in configuration' });
   }
 
   try {
@@ -248,9 +248,9 @@ router.post('/api/service/:id/check', async (req: Request, res: Response) => {
   }
 });
 
-// API для получения статистики
+// API for getting statistics
 router.get('/api/stats', async (req: Request, res: Response) => {
-  const period = parseInt(req.query.period as string) || 24; // часы
+  const period = parseInt(req.query.period as string) || 24; // hours
 
   try {
     const stats = await database.getStats(period);
@@ -260,8 +260,8 @@ router.get('/api/stats', async (req: Request, res: Response) => {
       stats: stats
     });
   } catch (err) {
-    routesLogger.error('Ошибка при получении статистики:', err);
-    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+    routesLogger.error('Error getting statistics:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 

@@ -1,28 +1,28 @@
 /**
- * Утилита для логирования с датой и временем
+ * Utility for logging with date and time
  */
 
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
 
 export class Logger {
-  private static currentLogLevel: LogLevel = 'info'; // уровень по умолчанию
+  private static currentLogLevel: LogLevel = 'info'; // default level
   
   /**
-   * Установка уровня логирования
+   * Setting logging level
    */
   static setLogLevel(level: LogLevel): void {
     this.currentLogLevel = level;
   }
   
   /**
-   * Получение текущего уровня логирования
+   * Getting current logging level
    */
   static getLogLevel(): LogLevel {
     return this.currentLogLevel;
   }
   
   /**
-   * Проверка, должен ли лог данного уровня быть записан
+   * Check if log of this level should be written
    */
   private static shouldLog(level: LogLevel): boolean {
     const levelPriority: Record<LogLevel, number> = {
@@ -38,7 +38,7 @@ export class Logger {
     return messagePriority <= currentPriority;
   }
   /**
-   * Форматирование даты с миллисекундами
+   * Formatting date with milliseconds
    */
   private static formatDate(): string {
     const now = new Date();
@@ -54,7 +54,7 @@ export class Logger {
   }
 
   /**
-   * Форматирование строки лога
+   * Formatting log string
    */
   private static formatLog(level: string, message: string, ...args: any[]): string {
     const timestamp = Logger.formatDate();
@@ -73,7 +73,7 @@ export class Logger {
   }
 
   /**
-   * Лог уровня info
+   * Info level log
    */
   static info(message: string, ...args: any[]): void {
     if (!this.shouldLog('info')) return;
@@ -81,7 +81,7 @@ export class Logger {
   }
 
   /**
-   * Лог уровня warn
+   * Warn level log
    */
   static warn(message: string, ...args: any[]): void {
     if (!this.shouldLog('warn')) return;
@@ -89,7 +89,7 @@ export class Logger {
   }
 
   /**
-   * Лог уровня error
+   * Error level log
    */
   static error(message: string, ...args: any[]): void {
     if (!this.shouldLog('error')) return;
@@ -97,7 +97,7 @@ export class Logger {
   }
 
   /**
-   * Лог уровня debug (только при включенном debug режиме)
+   * Debug level log (only when debug mode is enabled)
    */
   static debug(message: string, ...args: any[]): void {
     if (!this.shouldLog('debug')) return;
@@ -105,7 +105,7 @@ export class Logger {
   }
 
   /**
-   * Логирование с кастомным префиксом
+   * Logging with custom prefix
    */
   static withPrefix(prefix: string) {
     return {
@@ -121,7 +121,7 @@ export class Logger {
   }
 }
 
-// Экспортируем готовые логгеры для разных модулей
+// Export ready loggers for different modules
 export const mainLogger = Logger.withPrefix('Main');
 export const dbLogger = Logger.withPrefix('DB');
 export const checkerLogger = Logger.withPrefix('Checker');
@@ -132,5 +132,5 @@ export const tcpPingLogger = Logger.withPrefix('TCP-Ping');
 export const configLogger = Logger.withPrefix('Config');
 export const routesLogger = Logger.withPrefix('Routes');
 
-// Экспортируем синглтон для глобального использования
+// Export singleton for global use
 export default Logger;

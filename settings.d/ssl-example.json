@@ -5,5 +5,5 @@
   "interval": 86400,
   "warn_before": 30,
   "check_at": "08:00",
-  "group": "SSL Сертификаты"
+  "group": "SSL Certificates"
 }

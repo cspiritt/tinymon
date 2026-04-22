@@ -4,7 +4,7 @@ const path = require('path');
 const sourceDir = __dirname;
 const targetDir = path.join(__dirname, 'dist');
 
-// Файлы и папки, которые нужно скопировать
+// Files and folders to copy
 const copyItems = [
   'index.js',
   'package.json',
@@ -19,7 +19,7 @@ const copyItems = [
   'settings.d'
 ];
 
-// Файлы и папки, которые нужно игнорировать
+// Files and folders to ignore
 const ignorePatterns = [
   'node_modules',
   '.git',
@@ -31,7 +31,7 @@ const ignorePatterns = [
 ];
 
 async function cleanTarget() {
-  console.log('Очистка целевой директории...');
+  console.log('Cleaning target directory...');
   await fs.remove(targetDir);
   await fs.ensureDir(targetDir);
 }
@@ -47,7 +47,7 @@ async function copyFileOrDir(source, target) {
       const itemPath = path.join(source, item);
       const targetPath = path.join(target, item);
       
-      // Проверяем, нужно ли игнорировать этот элемент
+      // Check if this item should be ignored
       const shouldIgnore = ignorePatterns.some(pattern => {
         if (pattern.includes('*')) {
           const regex = new RegExp(pattern.replace('*', '.*'));
@@ -62,7 +62,7 @@ async function copyFileOrDir(source, target) {
     }
   } else {
     await fs.copy(source, target);
-    console.log(`Скопирован: ${path.relative(sourceDir, source)}`);
+    console.log(`Copied: ${path.relative(sourceDir, source)}`);
   }
 }
 
@@ -70,25 +70,25 @@ async function updatePackageJson() {
   const packagePath = path.join(targetDir, 'package.json');
   const packageJson = await fs.readJson(packagePath);
   
-  // Удаляем devDependencies, так как они не нужны в продакшене
+  // Remove devDependencies as they're not needed in production
   delete packageJson.devDependencies;
   
-  // Удаляем скрипты, которые не нужны в продакшене
+  // Remove scripts that are not needed in production
   delete packageJson.scripts.dev;
   delete packageJson.scripts.build;
   delete packageJson.scripts.clean;
   
-  // Добавляем скрипт для запуска из dist
+  // Add script for running from dist
   packageJson.scripts = {
     start: 'node index.js'
   };
   
   await fs.writeJson(packagePath, packageJson, { spaces: 2 });
-  console.log('Обновлен package.json для продакшена');
+  console.log('Updated package.json for production');
 }
 
 async function createGitignore() {
-  const gitignoreContent = `# Игнорируемые файлы в продакшене
+  const gitignoreContent = `# Files to ignore in production
 node_modules/
 *.log
 *.db
@@ -96,22 +96,22 @@ node_modules/
 .DS_Store
 `;
   await fs.writeFile(path.join(targetDir, '.gitignore'), gitignoreContent);
-  console.log('Создан .gitignore');
+  console.log('Created .gitignore');
 }
 
 async function build() {
   try {
-    console.log('Начало сборки проекта...');
+    console.log('Starting project build...');
     
-    // Очищаем целевую директорию
+    // Clean target directory
     await cleanTarget();
     
-    // Копируем файлы и папки
+    // Copy files and folders
     for (const item of copyItems) {
       let source = path.join(sourceDir, item);
       let target = path.join(targetDir, item);
       
-      // Специальная обработка для views, которые теперь в src/server/views
+      // Special handling for views which are now in src/server/views
       if (item === 'src/server/views') {
         target = path.join(targetDir, 'views');
       }
@@ -119,28 +119,28 @@ async function build() {
       if (await fs.pathExists(source)) {
         await copyFileOrDir(source, target);
       } else {
-        console.warn(`Предупреждение: ${item} не найден`);
+        console.warn(`Warning: ${item} not found`);
       }
     }
     
-    // Обновляем package.json для продакшена
+    // Update package.json for production
     await updatePackageJson();
     
-    // Создаем .gitignore
+    // Create .gitignore
     await createGitignore();
     
-    console.log('✅ Сборка завершена успешно!');
-    console.log(`📁 Итоговая сборка находится в: ${targetDir}`);
-    console.log('\nДля запуска приложения из dist:');
+    console.log('✅ Build completed successfully!');
+    console.log(`📁 Final build location: ${targetDir}`);
+    console.log('\nTo run the application from dist:');
     console.log(`  cd ${targetDir}`);
     console.log('  npm install --production');
     console.log('  npm start');
     
   } catch (error) {
-    console.error('❌ Ошибка при сборке:', error);
+    console.error('❌ Build error:', error);
     process.exit(1);
   }
 }
 
-// Запускаем сборку
+// Start the build
 build();

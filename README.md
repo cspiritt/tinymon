@@ -1,41 +1,45 @@
 # TinyMon
 
-Легковесный сервис мониторинга доступности IP/HTTP/HTTPS ресурсов на Node.js.
+Lightweight service availability monitoring for IP/HTTP/HTTPS resources built on Node.js.
 
-## Возможности
+## Features
 
-- Мониторинг HTTP/HTTPS ресурсов (GET запросы)
-- Мониторинг IP адресов (ICMP ping)
-- Гибкая конфигурация через JSON файлы
-- Автоматические периодические проверки
-- Ведение истории проверок в SQLite базе данных
-- Веб-интерфейс для просмотра статуса
-- REST API для интеграции
-- Автоматическое определение статусов: OK, WARNING, ERROR
+- HTTP/HTTPS resource monitoring (GET requests)
+- IP address monitoring (ICMP ping)
+- **SSL certificate expiration monitoring** with configurable warning thresholds
+- Flexible configuration via JSON files
+- Automatic periodic checks
+- Check history stored in SQLite database
+- Web interface for status viewing
+- REST API for integration
+- **Telegram notifications** for status changes and SSL certificate warnings
+- Automatic status determination: OK, WARNING, ERROR
+- **Offline support**: All external resources (fonts, icons) are bundled locally
+- **Full English localization**: User interface, error messages, logs, and comments
 
-## Требования
+## Requirements
 
-- Node.js 22 или выше
-- npm или yarn
-- Доступ к сети для проверок
-- Для ping проверок требуются права на выполнение ICMP (обычно требует запуска от root или соответствующих capabilities)
+- Node.js 22 or higher
+- npm or yarn
+- Network access for checks
+- For ping checks, ICMP execution privileges are required (usually requires root or appropriate capabilities)
 
-## Установка
+## Installation
 
 ```bash
-# Клонирование репозитория (если применимо)
+# Clone repository (if applicable)
 git clone <repository-url>
 cd tinymon
 
-# Установка зависимостей
+# Install dependencies
 npm install
 ```
 
-## Конфигурация
+## Configuration
 
-### Основные настройки (settings.json)
+### Main Settings (settings.json)
 
-Создайте файл `settings.json` в корне проекта:
+Create a `settings.json` file in the project root:
 
 ```json
 {
@@ -64,23 +68,43 @@ npm install
       "user": "root",
       "password": ""
     }
-  }
+  },
+  "notification_providers": [
+    {
+      "id": "telegram-bot",
+      "type": "telegram",
+      "parameters": {
+        "token": "YOUR_BOT_TOKEN",
+        "allowed_subscribers": [123456789]
+      }
+    }
+  ],
+  "users": [
+    {
+      "user": "admin",
+      "password": "$2b$10$hashed_password_here"
+    }
+  ]
 }
 ```
 
-- `bindAddress` - IP адрес для прослушивания
-- `port` - порт для веб-сервера
-- `checkInterval` - базовый интервал проверок в секундах
-- `timeout` - таймаут проверок в миллисекундах
-- `retries` - количество повторных попыток при неудаче
-- `logLevel` - уровень логирования (error, warn, info, debug)
-- `database` - конфигурация базы данных (тип и параметры подключения)
+- `bindAddress` - IP address to listen on
+- `port` - port for web server
+- `checkInterval` - base check interval in seconds
+- `timeout` - check timeout in milliseconds
+- `retries` - number of retry attempts on failure
+- `logLevel` - logging level (error, warn, info, debug)
+- `database` - database configuration (type and connection parameters)
+- `notification_providers` - array of notification providers (Telegram, etc.)
+- `users` - array of user accounts for web interface authentication
 
-### Конфигурация сервисов (settings.d)
+**Note:** User passwords must be bcrypt hashed. You can generate a hash using the `bcryptjs` package or online tools. The default admin password hash in the example corresponds to the password "admin".
 
-Создайте папку `settings.d` и добавьте JSON файлы для каждого мониторируемого сервиса.
+### Service Configuration (settings.d)
 
-Пример для HTTP сервиса (`settings.d/google.json`):
+Create a `settings.d` folder and add JSON files for each monitored service.
+
+Example for HTTP service (`settings.d/google.json`):
 
 ```json
 {
@@ -92,7 +116,7 @@ npm install
 }
 ```
 
-Пример для IP сервиса (`settings.d/cloudflare-dns.json`):
+Example for IP service (`settings.d/cloudflare-dns.json`):
 
 ```json
 {
@@ -104,97 +128,129 @@ npm install
 }
 ```
 
-Параметры:
-- `name` - отображаемое имя сервиса
-- `type` - тип проверки: `http` или `ip`
-- `address` - URL для HTTP или IP адрес для ping
-- `interval` - интервал проверок в секундах (минимум 10)
-- `timeout` - таймаут проверки в миллисекундах (опционально)
+Parameters:
+- `name` - display name of the service
+- `type` - check type: `http`, `ip`, or `ssl`
+- `address` - URL for HTTP/SSL or IP address for ping
+- `interval` - check interval in seconds (minimum 10)
+- `timeout` - check timeout in milliseconds (optional)
 
-## Логирование
+### SSL Certificate Monitoring
 
-TinyMon использует централизованную систему логирования с поддержкой даты и времени с миллисекундами.
+TinyMon can monitor SSL certificate expiration dates for HTTPS services. SSL checks include:
 
-### Формат логов
+- Certificate validity period checking
+- Configurable warning threshold before expiration
+- Scheduled checks at specific times of day
+- Integration with notification system for warnings
 
-Все логи выводятся в формате:
+Example SSL check configuration (`settings.d/github-ssl.json`):
+
+```json
+{
+  "name": "GitHub SSL",
+  "type": "ssl",
+  "address": "https://github.com",
+  "interval": 86400,
+  "warn_before": 30,
+  "check_at": "08:00",
+  "group": "SSL Certificates"
+}
 ```
-[YYYY-MM-DD HH:MM:SS.mmm] [LEVEL] [Prefix] сообщение
+
+Additional SSL-specific parameters:
+- `warn_before` - number of days before expiration to trigger WARNING status (default: 30)
+- `check_at` - optional time of day to perform checks (format: "HH:MM" in 24-hour format)
+
+SSL Status Logic:
+- **OK**: Certificate valid for more than `warn_before` days
+- **WARNING**: Certificate expires within `warn_before` days
+- **ERROR**: Certificate has expired
+
+## Logging
+
+TinyMon uses a centralized logging system with date and time support including milliseconds.
+
+### Log Format
+
+All logs are output in the format:
+```
+[YYYY-MM-DD HH:MM:SS.mmm] [LEVEL] [Prefix] message
 ```
 
-Пример:
+Example:
 ```
-[2026-04-21 21:41:18.222] [DEBUG] [Scheduler] Запуск планировщика проверок...
+[2026-04-21 21:41:18.222] [DEBUG] [Scheduler] Starting check scheduler...
 ```
 
-### Уровни логирования
+### Log Levels
 
-Уровни логирования (в порядке приоритета от наименьшего к наибольшему):
-1. **ERROR** - критические ошибки, требующие немедленного внимания
-2. **WARN** - предупреждения, потенциальные проблемы
-3. **INFO** - информационные сообщения (уровень по умолчанию)
-4. **DEBUG** - отладочная информация для разработки
+Log levels (in priority order from lowest to highest):
+1. **ERROR** - critical errors requiring immediate attention
+2. **WARN** - warnings, potential issues
+3. **INFO** - informational messages (default level)
+4. **DEBUG** - debug information for development
 
-### Конфигурация
+### Configuration
 
-Уровень логирования настраивается в `settings.json` через параметр `logLevel`:
+Log level is configured in `settings.json` via the `logLevel` parameter:
 ```json
 {
   "logLevel": "info"
 }
 ```
 
-Доступные значения: `"error"`, `"warn"`, `"info"`, `"debug"`.
+Available values: `"error"`, `"warn"`, `"info"`, `"debug"`.
 
-### Модульные логгеры
+### Module Loggers
 
-Система предоставляет готовые логгеры для различных модулей:
-- `Main` - основной процесс сервера
-- `DB` - операции с базой данных
-- `Checker` - проверка сервисов
-- `Scheduler` - планировщик проверок (сообщения уровня DEBUG)
-- `Notification` - уведомления (Telegram бот)
-- `Config` - загрузка конфигурации
-- `Routes` - обработка HTTP запросов
+The system provides ready-to-use loggers for various modules:
+- `Main` - main server process
+- `DB` - database operations
+- `Checker` - service checks
+- `Scheduler` - check scheduler (DEBUG level messages)
+- `Notification` - notifications (Telegram bot)
+- `Config` - configuration loading
+- `Routes` - HTTP request handling
 
-**Примечание:** Сообщения от планировщика (Scheduler) имеют уровень DEBUG для уменьшения шума в логах при нормальной работе.
+**Note:** Messages from the scheduler (Scheduler) have DEBUG level to reduce log noise during normal operation.
 
-## Запуск
+## Running
 
-### Разработка (с автоматической перезагрузкой)
+### Development (with auto-reload)
 
 ```bash
-npm run dev
+npm run dev:ts
 ```
 
-### Продакшен
+### Production
 
 ```bash
 npm start
 ```
 
-Сервис будет доступен по адресу: `http://localhost:3000`
+The service will be available at: `http://localhost:3000`
 
-## Веб-интерфейс
+## Web Interface
 
-После запуска откройте браузер и перейдите по адресу `http://localhost:3000`
+After starting, open your browser and navigate to `http://localhost:3000`
 
-Интерфейс включает:
-- Общую статистику (OK, WARNING, ERROR)
-- Таблицу всех сервисов с текущим статусом
-- Возможность принудительной проверки
-- Просмотр истории проверок для каждого сервиса
-- Автоматическое обновление каждые 30 секунд
+The interface includes:
+- Overall statistics (OK, WARNING, ERROR)
+- Table of all services with current status
+- Manual check triggering
+- View check history for each service
+- Automatic refresh every 30 seconds
 
 ## REST API
 
-### Получение статуса всех сервисов
+### Get Status of All Services
 
 ```
 GET /api/status
 ```
 
-Ответ:
+Response:
 ```json
 {
   "success": true,
@@ -216,168 +272,262 @@ GET /api/status
 }
 ```
 
-### Получение истории проверок сервиса
+### Get Service Check History
 
 ```
 GET /api/service/{id}/checks?limit=10
 ```
 
-### Принудительная проверка сервиса
+### Force Service Check
 
 ```
 POST /api/service/{id}/check
 ```
 
-### Получение статистики
+### Get Statistics
 
 ```
 GET /api/stats?period=24
 ```
 
-## Логика статусов
+## Status Logic
 
-- **OK**: счетчик неудач равен 0
-- **WARNING**: счетчик неудач от 1 до 2
-- **ERROR**: счетчик неудач 3 и более
+- **OK**: failure count equals 0
+- **WARNING**: failure count from 1 to 2
+- **ERROR**: failure count 3 or more
 
-При успешной проверке счетчик сбрасывается в 0. При неудачной - увеличивается на 1.
+On successful check, the counter resets to 0. On failed check, it increases by 1.
 
-## База данных
+## Notifications
 
-Используется SQLite база данных. Файл создается автоматически при первом запуске.
+TinyMon supports real-time notifications via Telegram bot for status changes and SSL certificate warnings.
 
-Структура:
-- `services` - информация о сервисах и их текущем состоянии
-- `checks` - история всех проверок
+### Telegram Notifications
 
-## Разработка
+To enable Telegram notifications, add a notification provider to your `settings.json`:
 
-### Структура проекта
+```json
+{
+  "notification_providers": [
+    {
+      "id": "telegram-bot",
+      "type": "telegram",
+      "parameters": {
+        "token": "YOUR_BOT_TOKEN",
+        "allowed_subscribers": [123456789]
+      }
+    }
+  ]
+}
+```
+
+**Parameters:**
+- `token` - Telegram Bot API token from [@BotFather](https://t.me/botfather)
+- `allowed_subscribers` - array of Telegram user IDs who can subscribe to notifications
+- `webhook` (optional) - webhook configuration for production deployments
+
+**Features:**
+- Real-time notifications for service status changes (OK → WARNING → ERROR)
+- SSL certificate expiration warnings
+- Manual check triggers via Telegram commands
+- Subscription management for users
+- Detailed service information in notifications
+
+**Telegram Commands:**
+- `/start` - Start interaction with bot
+- `/subscribe` - Subscribe to notifications
+- `/unsubscribe` - Unsubscribe from notifications
+- `/status` - Get current status of all services
+- `/check <service_id>` - Manually trigger service check
+- `/help` - Show available commands
+
+### Notification Triggers
+
+Notifications are sent when:
+1. Service status changes (OK → WARNING, WARNING → ERROR, etc.)
+2. SSL certificate enters warning period (based on `warn_before` setting)
+3. SSL certificate expires
+4. Manual check is triggered via API or web interface
+
+## Database
+
+Uses SQLite database. The file is created automatically on first run.
+
+Structure:
+- `services` - service information and current state
+- `checks` - history of all checks
+
+## Offline Support & Localization
+
+TinyMon is designed to work in offline/air-gapped environments:
+
+### Local Assets
+- **Font Awesome icons**: Bundled locally via `@fortawesome/fontawesome-free` npm package
+- **Inter font**: Bundled locally via `typeface-inter` npm package
+- **No external CDN dependencies**: All CSS, fonts, and icons are served from local `public/vendor/` directory
+
+### English Localization
+- Complete translation of user interface, error messages, logs, and code comments
+- EJS templates use `<html lang="en">`
+- Configuration files use English group names
+- Build scripts and documentation in English
+
+### Build Process
+The `npm run copy:vendor` command automatically copies vendor assets from `node_modules` to `public/vendor/` during build. This is integrated into all build commands.
+
+## Development
+
+### Project Structure
 
 ```
 tinymon/
-├── index.js              # Основной файл приложения
-├── settings.json         # Основные настройки
-├── settings.d/           # Конфигурация сервисов
-├── models/              # Модели базы данных
-├── routes/              # Маршруты API
-├── utils/               # Вспомогательные утилиты
-├── views/               # Шаблоны EJS
-├── public/              # Статические файлы
-│   ├── css/             # Стили
-│   └── js/              # Клиентский JavaScript
-└── package.json         # Зависимости
+├── src/                    # Source code
+│   ├── client/            # Client-side TypeScript
+│   └── server/            # Server-side TypeScript
+│       ├── models/        # Database models
+│       ├── routes/        # API routes
+│       ├── utils/         # Utility functions
+│       ├── views/         # EJS templates
+│       └── notifications/ # Notification providers
+├── public/                # Static files
+│   ├── css/               # Styles
+│   ├── js/                # Client JavaScript
+│   └── vendor/            # Localized external resources
+│       ├── fontawesome/   # Font Awesome CSS and fonts
+│       └── inter/         # Inter font files
+├── settings.d/            # Service configuration
+├── scripts/               # Build utilities
+├── package.json           # Dependencies
+├── tsconfig.json          # TypeScript configuration
+├── webpack.config.js      # Webpack configuration
+└── README.md              # Documentation
 ```
 
-### Добавление новых типов проверок
+### Adding New Check Types
 
-Для добавления нового типа проверки:
-1. Добавьте поддержку типа в `utils/checker.js`
-2. Обновите валидацию в `utils/config.js`
-3. Добавьте соответствующую иконку в веб-интерфейс
+To add a new check type:
+1. Add support for the type in `src/server/utils/checker.ts`
+2. Update validation in `src/server/utils/config.ts`
+3. Add corresponding icon in the web interface
 
-## Сборка и деплой
+## Build and Deployment
 
-Проект использует Webpack для создания production-бандла со всеми зависимостями (кроме драйверов баз данных).
+The project uses Webpack to create a production bundle with all dependencies (except database drivers).
 
-### Поддерживаемые базы данных
+### Supported Databases
 
-TinyMon поддерживает несколько типов баз данных через систему адаптеров:
+TinyMon supports multiple database types through adapter system:
 
-1. **SQLite** (по умолчанию) - требует установки `better-sqlite3`
-2. **PostgreSQL** - требует установки `pg`
-3. **MySQL** - требует установки `mysql2`
+1. **SQLite** (default) - requires `better-sqlite3` installation
+2. **PostgreSQL** - requires `pg` installation
+3. **MySQL** - requires `mysql2` installation
 
-Драйверы БД не включаются в бандл и должны быть установлены отдельно на целевой системе.
+Database drivers are not included in the bundle and must be installed separately on the target system.
 
-### Команды сборки
+### Build Commands
 
 ```bash
-# Очистка директории сборки
+# Clean build directory
 npm run clean
 
-# Сборка проекта в директорию dist (Webpack)
+# Copy vendor assets (fonts, icons) to public/vendor
+npm run copy:vendor
+
+# Build project to dist directory (Webpack)
 npm run build
 
-# Сборка legacy-версии (копирование файлов)
+# Build client bundle
+npm run build:client
+
+# Build all (clean + build + build:client)
+npm run build:all
+
+# Legacy build (file copying approach)
 npm run build:legacy
 
-# Запуск production-версии из dist
+# Run production version from dist
 npm run start:prod
+
+# Type checking
+npm run type-check
+npm run type-check:client
 ```
 
-### Структура сборки
+### Build Structure
 
-После выполнения `npm run build` создается директория `dist` со следующей структурой:
+After running `npm run build:legacy`, a `dist` directory is created with the following structure:
 
 ```
 dist/
-├── bundle.js             # Основной бандл приложения (все JS код)
-├── settings.json         # Основные настройки
-├── settings.d/           # Конфигурация сервисов
-├── views/               # Шаблоны EJS
-├── public/              # Статические файлы (CSS, JS)
+├── bundle.js             # Main application bundle (all JS code)
+├── settings.json         # Main settings
+├── settings.d/           # Service configurations
+├── views/               # EJS templates
+├── public/              # Static files (CSS, JS, vendor assets)
 │   ├── css/style.css
-│   └── js/app.js
-├── package.json         # Минимальный package.json с peerDependencies
-└── README.md            # Документация
+│   ├── js/app.js
+│   └── vendor/          # Localized external resources
+│       ├── fontawesome/
+│       └── inter/
+├── package.json         # Minimal package.json with peerDependencies
+└── README.md            # Documentation
 ```
 
-### Деплой
+### Deployment
 
-Для деплоя собранной версии:
+To deploy the built version:
 
-1. **Сборка:** Выполните `npm run build`
-2. **Копирование:** Скопируйте содержимое директории `dist` на сервер
-3. **Установка драйверов БД:** На сервере установите нужный драйвер БД:
+1. **Build:** Run `npm run build:legacy`
+2. **Copy:** Copy the contents of the `dist` directory to your server
+3. **Install DB drivers:** On the server, install the required database driver:
    ```bash
-   # Для SQLite
+   # For SQLite
    npm install better-sqlite3
-   
-   # Для PostgreSQL
+
+   # For PostgreSQL
    npm install pg
-   
-   # Для MySQL
+
+   # For MySQL
    npm install mysql2
    ```
-4. **Запуск:** Запустите приложение:
+4. **Run:** Start the application:
    ```bash
    node bundle.js
    ```
 
-### Конфигурация базы данных
+### Database Configuration
 
-Измените `settings.json` для выбора типа БД:
+Modify `settings.json` to select database type:
 
 ```json
 {
   "database": {
-    "type": "postgres",  // или "sqlite", "mysql"
+    "type": "postgres",  // or "sqlite", "mysql"
     "postgres": {
       "host": "localhost",
       "port": 5432,
       "database": "tinymon",
       "user": "postgres",
-      "password": "ваш_пароль"
+      "password": "your_password"
     }
   }
 }
 ```
 
-### TCP Ping вместо ICMP
+### TCP Ping Instead of ICMP
 
-Для проверки IP адресов используется TCP ping (подключение к порту) вместо ICMP, что не требует специальных прав и работает на всех платформах. Формат адреса: `host:port` (порт по умолчанию 80).
+For IP address checks, TCP ping (connection to port) is used instead of ICMP, which doesn't require special privileges and works on all platforms. Address format: `host:port` (default port 80).
 
-Пример конфигурации IP проверки:
+Example IP check configuration:
 ```json
 {
-  "name": "Веб-сервер",
+  "name": "Web Server",
   "type": "ip",
   "address": "example.com:443",
   "interval": 30
 }
 ```
 
-## Лицензия
+## License
 
 MIT

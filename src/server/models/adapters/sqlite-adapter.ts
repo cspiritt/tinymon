@@ -19,12 +19,12 @@ export class SQLiteAdapter extends DatabaseAdapter {
   }
 
   async connect(): Promise<void> {
-    // Динамический импорт better-sqlite3
+    // Dynamic import of better-sqlite3
     try {
       this.Database = require('better-sqlite3');
     } catch (err) {
       throw new Error(
-        'Модуль better-sqlite3 не установлен. Установите его: npm install better-sqlite3'
+        'better-sqlite3 module is not installed. Install it: npm install better-sqlite3'
       );
     }
 
@@ -33,11 +33,11 @@ export class SQLiteAdapter extends DatabaseAdapter {
     this.db.pragma('journal_mode = WAL');
 
     await this.createTables();
-    dbLogger.info(`SQLite база данных подключена: ${dbPath}`);
+    dbLogger.info(`SQLite database connected: ${dbPath}`);
   }
 
   async createTables(): Promise<void> {
-    // Таблица сервисов
+    // Services table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS services (
         id TEXT PRIMARY KEY,
@@ -59,7 +59,7 @@ export class SQLiteAdapter extends DatabaseAdapter {
       )
     `);
 
-    // Таблица результатов проверок
+    // Check results table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS checks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -72,7 +72,7 @@ export class SQLiteAdapter extends DatabaseAdapter {
       )
     `);
 
-    // Таблица подписчиков на уведомления
+    // Notification subscribers table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS notification_subscribers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -85,59 +85,59 @@ export class SQLiteAdapter extends DatabaseAdapter {
       )
     `);
 
-    // Индексы
+    // Indexes
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_checks_service_id ON checks(service_id);
       CREATE INDEX IF NOT EXISTS idx_checks_checked_at ON checks(checked_at);
     `);
 
-    // Миграция для существующих таблиц (добавить колонку service_group если отсутствует)
+    // Migration for existing tables (add service_group column if missing)
     try {
       this.db.exec(`ALTER TABLE services ADD COLUMN service_group TEXT DEFAULT ''`);
-      dbLogger.info('Миграция: добавлена колонка service_group');
+      dbLogger.info('Migration: added service_group column');
     } catch (err) {
-      // Колонка уже существует, игнорируем ошибку
+      // Column already exists, ignore error
     }
     
-    // Миграция для SSL полей
+    // Migration for SSL fields
     try {
       this.db.exec(`ALTER TABLE services ADD COLUMN warn_before INTEGER DEFAULT NULL`);
-      dbLogger.info('Миграция: добавлена колонка warn_before');
+      dbLogger.info('Migration: added warn_before column');
     } catch (err) {
-      // Колонка уже существует, игнорируем ошибку
+      // Column already exists, ignore error
     }
     
     try {
       this.db.exec(`ALTER TABLE services ADD COLUMN check_at TEXT DEFAULT NULL`);
-      dbLogger.info('Миграция: добавлена колонка check_at');
+      dbLogger.info('Migration: added check_at column');
     } catch (err) {
-      // Колонка уже существует, игнорируем ошибку
+      // Column already exists, ignore error
     }
     
     try {
       this.db.exec(`ALTER TABLE services ADD COLUMN ssl_days_until_expiry INTEGER DEFAULT NULL`);
-      dbLogger.info('Миграция: добавлена колонка ssl_days_until_expiry');
+      dbLogger.info('Migration: added ssl_days_until_expiry column');
     } catch (err) {
-      // Колонка уже существует, игнорируем ошибку
+      // Column already exists, ignore error
     }
     
     try {
       this.db.exec(`ALTER TABLE services ADD COLUMN ssl_expiry_date INTEGER DEFAULT NULL`);
-      dbLogger.info('Миграция: добавлена колонка ssl_expiry_date');
+      dbLogger.info('Migration: added ssl_expiry_date column');
     } catch (err) {
-      // Колонка уже существует, игнорируем ошибку
+      // Column already exists, ignore error
     }
     
     try {
       this.db.exec(`ALTER TABLE services ADD COLUMN last_notified_status TEXT DEFAULT 'unknown'`);
-      dbLogger.info('Миграция: добавлена колонка last_notified_status');
+      dbLogger.info('Migration: added last_notified_status column');
     } catch (err) {
-      // Колонка уже существует, игнорируем ошибку
+      // Column already exists, ignore error
     }
     
-    // Миграция типа: обновить CHECK constraint нельзя напрямую, нужно пересоздать таблицу
-    // Но можно просто игнорировать, т.к. SQLite не проверяет CHECK при ALTER TABLE
-    // Нужно обновить только новые сервисы, старые продолжат работать
+    // Type migration: cannot update CHECK constraint directly, need to recreate table
+    // But can simply ignore, because SQLite doesn't check CHECK on ALTER TABLE
+    // Only new services need to be updated, old ones will continue working
   }
 
   async syncServices(services: Service[]): Promise<void> {
@@ -172,7 +172,7 @@ export class SQLiteAdapter extends DatabaseAdapter {
     });
 
     transaction(services);
-    dbLogger.info(`SQLite: синхронизировано сервисов: ${services.length}`);
+    dbLogger.info(`SQLite: synchronized services: ${services.length}`);
   }
 
   async getAllServices(): Promise<any[]> {
@@ -195,7 +195,7 @@ export class SQLiteAdapter extends DatabaseAdapter {
   ): Promise<UpdateServiceStatusResult> {
     const service = await this.getService(serviceId);
     if (!service) {
-      throw new Error(`Сервис ${serviceId} не найден`);
+      throw new Error(`Service ${serviceId} not found`);
     }
 
     let failureCount = service.failure_count;
@@ -209,7 +209,7 @@ export class SQLiteAdapter extends DatabaseAdapter {
       lastStatus = 'failure';
     }
 
-    // Подготавливаем значения SSL полей
+    // Prepare SSL field values
     const sslDaysUntilExpiry = options?.ssl_days_until_expiry !== undefined ? options.ssl_days_until_expiry : null;
     const sslExpiryDate = options?.ssl_expiry_date ? Math.floor(options.ssl_expiry_date.getTime() / 1000) : null;
     
@@ -221,7 +221,7 @@ export class SQLiteAdapter extends DatabaseAdapter {
     `);
     stmt.run(failureCount, lastStatus, sslDaysUntilExpiry, sslExpiryDate, serviceId);
 
-    // Записать результат проверки в историю
+    // Record check result in history
     const checkStmt = this.db.prepare(`
       INSERT INTO checks (service_id, status, response_time, error_message)
       VALUES (?, ?, ?, ?)

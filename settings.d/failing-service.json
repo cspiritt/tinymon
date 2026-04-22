@@ -1,8 +1,8 @@
 {
-  "name": "Несуществующий сервис",
+  "name": "Non-existent Service",
   "type": "http",
   "address": "http://nonexistent.example.com",
   "interval": 30,
   "timeout": 3000,
-  "group": "Проблемные сервисы"
+  "group": "Problematic Services"
 }

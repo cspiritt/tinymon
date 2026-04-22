@@ -21,83 +21,83 @@ export abstract class NotificationProvider {
   }
 
   /**
-   * Инициализация провайдера (подключение к API, запуск бота и т.д.)
+   * Provider initialization (connecting to API, starting bot, etc.)
    */
   abstract initialize(): Promise<void>;
 
   /**
-   * Отправка уведомления о изменении статуса сервиса
+   * Sending notification about service status change
    */
   abstract sendNotification(message: NotificationMessage): Promise<void>;
 
   /**
-   * Обработка команд от пользователей (для ботов)
-   * @param command - команда
-   * @param subscriberId - идентификатор подписчика
-   * @param args - аргументы команды
+   * Processing commands from users (for bots)
+   * @param command - command
+   * @param subscriberId - subscriber identifier
+   * @param args - command arguments
    */
   async handleCommand(command: string, subscriberId: string, args?: string[]): Promise<string> {
-    // Базовая реализация для команд /start и /stop
+    // Base implementation for /start and /stop commands
     switch (command) {
       case 'start':
         await database.addNotificationSubscriber(this.providerId, subscriberId);
-        return 'Вы подписались на уведомления о изменении статуса сервисов. Для отписки используйте /stop';
+        return 'You have subscribed to service status change notifications. Use /stop to unsubscribe.';
       
       case 'stop':
         await database.removeNotificationSubscriber(this.providerId, subscriberId);
-        return 'Вы отписались от уведомлений. Для подписки используйте /start';
+        return 'You have unsubscribed from notifications. Use /start to subscribe.';
       
       default:
-        return `Неизвестная команда: ${command}. Доступные команды: /start, /stop`;
+        return `Unknown command: ${command}. Available commands: /start, /stop`;
     }
   }
 
   /**
-   * Получить список активных подписчиков
+   * Get list of active subscribers
    */
   async getSubscribers(): Promise<any[]> {
     return database.getNotificationSubscribers(this.providerId);
   }
 
   /**
-   * Форматирование сообщения для уведомления
+   * Formatting notification message
    */
   protected formatMessage(message: NotificationMessage): string {
-    const time = new Date(message.timestamp).toLocaleString('ru-RU');
+    const time = new Date(message.timestamp).toLocaleString('en-US');
     let statusText = '';
     
     switch (message.currentStatus) {
       case 'OK':
-        statusText = '✅ Восстановлен';
+        statusText = '✅ Restored';
         break;
       case 'WARNING':
-        statusText = '⚠️ Предупреждение';
+        statusText = '⚠️ Warning';
         break;
       case 'ERROR':
-        statusText = '❌ Ошибка';
+        statusText = '❌ Error';
         break;
       default:
-        statusText = `Статус: ${message.currentStatus}`;
+        statusText = `Status: ${message.currentStatus}`;
     }
 
     let details = '';
     if (message.errorMessage) {
-      details += `\nОшибка: ${message.errorMessage}`;
+      details += `\nError: ${message.errorMessage}`;
     }
     if (message.sslDaysUntilExpiry !== undefined) {
       if (message.sslDaysUntilExpiry > 0) {
-        details += `\nSSL сертификат истекает через ${message.sslDaysUntilExpiry} дней`;
+        details += `\nSSL certificate expires in ${message.sslDaysUntilExpiry} days`;
       } else if (message.sslDaysUntilExpiry === 0) {
-        details += `\nSSL сертификат истекает сегодня!`;
+        details += `\nSSL certificate expires today!`;
       } else {
-        details += `\nSSL сертификат истек ${-message.sslDaysUntilExpiry} дней назад`;
+        details += `\nSSL certificate expired ${-message.sslDaysUntilExpiry} days ago`;
       }
     }
 
     return `📡 **${message.serviceName}**\n` +
            `${statusText}\n` +
-           `Предыдущий статус: ${message.previousStatus}\n` +
-           `Время: ${time}` +
+           `Previous status: ${message.previousStatus}\n` +
+           `Time: ${time}` +
            details;
   }
 }

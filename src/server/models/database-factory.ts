@@ -19,10 +19,10 @@ class DatabaseFactory {
 
     const AdapterClass = adapterClasses[dbType];
     if (!AdapterClass) {
-      throw new Error(`Неподдерживаемый тип базы данных: ${dbType}`);
+      throw new Error(`Unsupported database type: ${dbType}`);
     }
 
-    // Получаем конфигурацию для конкретного типа БД
+    // Get configuration for specific database type
     const typeConfig = dbConfig[dbType] || {};
     const adapter = new AdapterClass(typeConfig);
 

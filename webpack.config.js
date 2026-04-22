@@ -16,8 +16,8 @@ module.exports = {
     __filename: false
   },
   externals: [
-    // Исключаем только драйверы БД, так как они нативные или внешние
-    // Остальные модули будут включены в бандл
+    // Exclude only database drivers as they are native or external
+    // Other modules will be included in the bundle
     'better-sqlite3',
     'pg',
     'mysql2',
@@ -49,7 +49,7 @@ module.exports = {
           to: 'package.json',
           transform(content) {
             const packageJson = JSON.parse(content.toString());
-            // Оставляем только основные поля
+            // Keep only essential fields
             return JSON.stringify({
               name: packageJson.name,
               version: packageJson.version,

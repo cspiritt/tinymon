@@ -19,7 +19,7 @@ export class MySQLAdapter extends DatabaseAdapter {
       this.mysql = require('mysql2/promise');
     } catch (err) {
       throw new Error(
-        'Модуль mysql2 не установлен. Установите его: npm install mysql2'
+        'mysql2 module is not installed. Install it: npm install mysql2'
       );
     }
 
@@ -36,11 +36,11 @@ export class MySQLAdapter extends DatabaseAdapter {
       queueLimit: 0
     });
 
-    // Проверяем соединение
+    // Test connection
     const connection = await this.pool.getConnection();
     try {
       await this.createTablesWithConnection(connection);
-      dbLogger.info('MySQL база данных подключена');
+      dbLogger.info('MySQL database connected');
     } finally {
       connection.release();
     }
@@ -56,7 +56,7 @@ export class MySQLAdapter extends DatabaseAdapter {
   }
 
   private async createTablesWithConnection(connection: any): Promise<void> {
-    // Таблица сервисов
+    // Services table
     await connection.query(`
       CREATE TABLE IF NOT EXISTS services (
         id VARCHAR(255) PRIMARY KEY,
@@ -78,12 +78,12 @@ export class MySQLAdapter extends DatabaseAdapter {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
     
-    // Миграция: добавить колонку service_group если отсутствует
+    // Migration: add service_group column if missing
     await connection.query(`
       ALTER TABLE services ADD COLUMN IF NOT EXISTS service_group VARCHAR(255) DEFAULT ''
     `);
     
-    // Миграция для SSL полей
+    // Migration for SSL fields
     await connection.query(`
       ALTER TABLE services ADD COLUMN IF NOT EXISTS warn_before INT DEFAULT NULL
     `);
@@ -104,7 +104,7 @@ export class MySQLAdapter extends DatabaseAdapter {
       ALTER TABLE services ADD COLUMN IF NOT EXISTS last_notified_status VARCHAR(50) DEFAULT 'unknown'
     `);
 
-    // Таблица результатов проверок
+    // Check results table
     await connection.query(`
       CREATE TABLE IF NOT EXISTS checks (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -119,7 +119,7 @@ export class MySQLAdapter extends DatabaseAdapter {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
-    // Таблица подписчиков на уведомления
+    // Notification subscribers table
     await connection.query(`
       CREATE TABLE IF NOT EXISTS notification_subscribers (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -165,7 +165,7 @@ export class MySQLAdapter extends DatabaseAdapter {
       }
 
       await connection.commit();
-      dbLogger.info(`MySQL: синхронизировано сервисов: ${services.length}`);
+      dbLogger.info(`MySQL: synchronized services: ${services.length}`);
     } catch (err) {
       await connection.rollback();
       throw err;
@@ -208,7 +208,7 @@ export class MySQLAdapter extends DatabaseAdapter {
     try {
       await connection.beginTransaction();
 
-      // Получаем текущий сервис
+      // Get current service
       const [serviceRows] = await connection.query(
         'SELECT failure_count FROM services WHERE id = ?',
         [serviceId]
@@ -217,7 +217,7 @@ export class MySQLAdapter extends DatabaseAdapter {
       if (serviceRows.length === 0) {
         await connection.rollback();
         connection.release();
-        throw new Error(`Сервис ${serviceId} не найден`);
+        throw new Error(`Service ${serviceId} not found`);
       }
 
       let failureCount = serviceRows[0].failure_count;
@@ -231,11 +231,11 @@ export class MySQLAdapter extends DatabaseAdapter {
         lastStatus = 'failure';
       }
 
-      // Подготавливаем значения SSL полей
+      // Prepare SSL field values
       const sslDaysUntilExpiry = options?.ssl_days_until_expiry !== undefined ? options.ssl_days_until_expiry : null;
       const sslExpiryDate = options?.ssl_expiry_date ? Math.floor(options.ssl_expiry_date.getTime() / 1000) : null;
       
-      // Обновляем сервис
+      // Update service
       await connection.query(`
         UPDATE services
         SET failure_count = ?, last_status = ?, last_check = UNIX_TIMESTAMP(),
@@ -243,7 +243,7 @@ export class MySQLAdapter extends DatabaseAdapter {
         WHERE id = ?
       `, [failureCount, lastStatus, sslDaysUntilExpiry, sslExpiryDate, serviceId]);
 
-      // Записываем результат проверки
+      // Record check result
       await connection.query(`
         INSERT INTO checks (service_id, status, response_time, error_message)
         VALUES (?, ?, ?, ?)

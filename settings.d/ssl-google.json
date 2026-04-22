@@ -4,5 +4,5 @@
   "address": "https://www.google.com",
   "warn_before": 10000,
   "check_at": "09:00",
-  "group": "SSL Сертификаты"
+  "group": "SSL Certificates"
 }

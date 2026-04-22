@@ -6,8 +6,8 @@ export interface Service {
   interval: number;
   timeout?: number;
   group?: string;
-  warn_before?: number;      // Для SSL: дней до экспирации для предупреждения
-  check_at?: string;         // Для SSL: время проверки (HH:MM)
+  warn_before?: number;      // For SSL: days before expiry to trigger warning
+  check_at?: string;         // For SSL: check time (HH:MM)
 }
 
 export interface ServiceGroup {
@@ -79,8 +79,8 @@ export interface CheckResult {
   errorMessage: string | null;
   failureCount: number;
   status: ServiceStatus;
-  ssl_days_until_expiry?: number;  // Для SSL: дней до истечения срока действия
-  ssl_expiry_date?: Date;          // Для SSL: дата истечения срока
+  ssl_days_until_expiry?: number;  // For SSL: days until expiry
+  ssl_expiry_date?: Date;          // For SSL: expiry date
 }
 
 export interface SSLCertificateInfo {

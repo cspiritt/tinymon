@@ -29,13 +29,13 @@ class ServiceChecker {
         responseTime = Date.now() - startTime;
         success = true;
       } else if (service.type === 'ssl') {
-        // SSL проверка возвращает готовый CheckResult
+        // SSL check returns a ready CheckResult
         const sslResult = await checkSSLCertificate(service);
         responseTime = sslResult.responseTime;
         success = sslResult.success;
         errorMessage = sslResult.errorMessage;
-        
-        // Обновляем статус в базе данных с SSL полями
+
+        // Update status in database with SSL fields
         const result = await database.updateServiceStatus(
           service.id,
           success,
@@ -50,14 +50,14 @@ class ServiceChecker {
         const failureCount = result ? result.failureCount : 0;
         const status = sslResult.status;
 
-        // Отправляем уведомление при изменении статуса
+        // Send notification on status change
         notificationManager.checkAndNotifyStatusChange(
           service.id,
           service.name,
           status,
           errorMessage || undefined,
           sslResult.ssl_days_until_expiry
-        ).catch(err => checkerLogger.error('Ошибка отправки уведомления:', err));
+        ).catch(err => checkerLogger.error('Error sending notification:', err));
 
         return {
           ...sslResult,
@@ -65,14 +65,14 @@ class ServiceChecker {
           status
         };
       } else {
-        throw new Error(`Неизвестный тип сервиса: ${service.type}`);
+        throw new Error(`Unknown service type: ${service.type}`);
       }
     } catch (err) {
       errorMessage = (err as Error).message;
       success = false;
     }
 
-    // Обновляем статус в базе данных
+    // Update status in database
     const result = await database.updateServiceStatus(
       service.id,
       success,
@@ -83,13 +83,13 @@ class ServiceChecker {
     const failureCount = result ? result.failureCount : 0;
     const status = this.getStatus(failureCount);
 
-    // Отправляем уведомление при изменении статуса
+    // Send notification on status change
     notificationManager.checkAndNotifyStatusChange(
       service.id,
       service.name,
       status,
       errorMessage || undefined
-    ).catch(err => checkerLogger.error('Ошибка отправки уведомления:', err));
+    ).catch(err => checkerLogger.error('Error sending notification:', err));
 
     return {
       serviceId: service.id,
@@ -122,11 +122,11 @@ class ServiceChecker {
         throw new Error(`HTTP ${response.status} ${response.statusText}`);
       }
 
-      // Проверяем, что ответ не слишком большой (только заголовки)
-      // Дополнительные проверки можно добавить здесь
+      // Check that response is not too large (headers only)
+      // Additional checks can be added here
     } catch (err) {
       if ((err as Error).name === 'AbortError') {
-        throw new Error(`Таймаут ${timeout}мс`);
+        throw new Error(`Timeout ${timeout}ms`);
       }
       throw err;
     }
@@ -137,7 +137,7 @@ class ServiceChecker {
     const isAlive = await checkIpAddress(service.address, timeout);
 
     if (!isAlive) {
-      throw new Error('TCP ping неудачен');
+      throw new Error('TCP ping failed');
     }
   }
 

@@ -12,7 +12,7 @@ export class NotificationManager {
   constructor() {}
 
   /**
-   * Инициализация менеджера уведомлений
+   * Notification manager initialization
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
@@ -22,22 +22,22 @@ export class NotificationManager {
     const settings = config.getSettings();
     const providerConfigs = settings.notification_providers || [];
 
-    notificationLogger.info(`Инициализация уведомлений: найдено ${providerConfigs.length} провайдеров`);
+    notificationLogger.info(`Notification initialization: found ${providerConfigs.length} providers`);
 
     for (const providerConfig of providerConfigs) {
       try {
         await this.addProvider(providerConfig);
       } catch (err) {
-        notificationLogger.error(`Ошибка инициализации провайдера ${providerConfig.id}:`, err);
+        notificationLogger.error(`Error initializing provider ${providerConfig.id}:`, err);
       }
     }
 
     this.isInitialized = true;
-    notificationLogger.info('Менеджер уведомлений инициализирован');
+    notificationLogger.info('Notification manager initialized');
   }
 
   /**
-   * Добавление провайдера уведомлений
+   * Add notification provider
    */
   async addProvider(providerConfig: NotificationProviderConfig): Promise<void> {
     let provider: NotificationProvider;
@@ -47,27 +47,27 @@ export class NotificationManager {
         provider = new TelegramNotificationProvider(providerConfig.id, providerConfig.parameters);
         break;
       default:
-        throw new Error(`Неизвестный тип провайдера уведомлений: ${providerConfig.type}`);
+        throw new Error(`Unknown notification provider type: ${providerConfig.type}`);
     }
 
     await provider.initialize();
     this.providers.set(providerConfig.id, provider);
-    notificationLogger.info(`Провайдер уведомлений ${providerConfig.id} (${providerConfig.type}) добавлен`);
+    notificationLogger.info(`Notification provider ${providerConfig.id} (${providerConfig.type}) added`);
   }
 
   /**
-   * Отправка уведомления о изменении статуса сервиса всем провайдерам
+   * Send service status change notification to all providers
    */
   async notifyServiceStatusChange(message: NotificationMessage): Promise<void> {
     if (this.providers.size === 0) {
       return;
     }
 
-    notificationLogger.info(`Отправка уведомления о изменении статуса сервиса ${message.serviceName}`);
+    notificationLogger.info(`Sending service status change notification for ${message.serviceName}`);
 
     const promises = Array.from(this.providers.values()).map(provider =>
       provider.sendNotification(message).catch(err => {
-        notificationLogger.error(`Ошибка отправки уведомления через провайдер ${provider.constructor.name}:`, err);
+        notificationLogger.error(`Error sending notification via provider ${provider.constructor.name}:`, err);
       })
     );
 
@@ -75,21 +75,21 @@ export class NotificationManager {
   }
 
   /**
-   * Получить провайдера по ID
+   * Get provider by ID
    */
   getProvider(providerId: string): NotificationProvider | undefined {
     return this.providers.get(providerId);
   }
 
   /**
-   * Получить список всех провайдеров
+   * Get all providers list
    */
   getAllProviders(): NotificationProvider[] {
     return Array.from(this.providers.values());
   }
 
   /**
-   * Проверить изменение статуса и отправить уведомление при необходимости
+   * Check status change and send notification if needed
    */
   async checkAndNotifyStatusChange(
     serviceId: string,
@@ -105,12 +105,12 @@ export class NotificationManager {
     try {
       const previousNotifiedStatus = await database.getServiceLastNotifiedStatus(serviceId);
       
-      // Если статус не изменился, не отправляем уведомление
+      // If status hasn't changed, don't send notification
       if (previousNotifiedStatus === currentStatus) {
         return;
       }
 
-      // Обновляем последний отправленный статус
+      // Update last notified status
       await database.updateServiceLastNotifiedStatus(serviceId, currentStatus);
 
       const message: NotificationMessage = {
@@ -123,38 +123,38 @@ export class NotificationManager {
         sslDaysUntilExpiry
       };
 
-      // Отправляем уведомление асинхронно (не ждем завершения)
+      // Send notification asynchronously (don't wait for completion)
       this.notifyServiceStatusChange(message).catch(err => {
-        notificationLogger.error('Ошибка при отправке уведомления:', err);
+        notificationLogger.error('Error sending notification:', err);
       });
 
-      notificationLogger.info(`Статус сервиса ${serviceName} изменился: ${previousNotifiedStatus} -> ${currentStatus}, отправлено уведомление`);
+      notificationLogger.info(`Service status ${serviceName} changed: ${previousNotifiedStatus} -> ${currentStatus}, notification sent`);
     } catch (err) {
-      notificationLogger.error('Ошибка при проверке изменения статуса:', err);
+      notificationLogger.error('Error checking status change:', err);
     }
   }
 
   /**
-   * Остановка всех провайдеров
+   * Stop all providers
    */
   async shutdown(): Promise<void> {
-    notificationLogger.info('Остановка менеджера уведомлений...');
+    notificationLogger.info('Stopping notification manager...');
     
     for (const provider of this.providers.values()) {
       if ('shutdown' in provider && typeof (provider as any).shutdown === 'function') {
         try {
           await (provider as any).shutdown();
         } catch (err) {
-          notificationLogger.error('Ошибка остановки провайдера:', err);
+          notificationLogger.error('Error stopping provider:', err);
         }
       }
     }
     
     this.providers.clear();
     this.isInitialized = false;
-    notificationLogger.info('Менеджер уведомлений остановлен');
+    notificationLogger.info('Notification manager stopped');
   }
 }
 
-// Экспортируем синглтон
+// Export singleton
 export default new NotificationManager();

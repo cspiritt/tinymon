@@ -14,7 +14,7 @@ import * as auth from './utils/auth';
 
 class MonitoringServer {
   private app: express.Application;
-  private server: any; // TODO: заменить на http.Server
+  private server: any; // TODO: replace with http.Server
 
   constructor() {
     this.app = express();
@@ -23,25 +23,25 @@ class MonitoringServer {
   }
 
   async initialize(): Promise<void> {
-    // Загрузка конфигурации
+    // Load configuration
     await config.load();
 
 
-    // Подключение к базе данных
+    // Connect to database
     await database.connect();
 
-    // Синхронизация сервисов
+    // Sync services
     await database.syncServices(config.getServices());
 
-    // Инициализация менеджера уведомлений
+    // Initialize notification manager
     await notificationManager.initialize();
 
-    // Настройка middleware
+    // Setup middleware
     this.app.use(bodyParser.json());
     this.app.use(bodyParser.urlencoded({ extended: true }));
     this.app.use(cookieParser());
     
-    // Определяем пути в зависимости от окружения
+    // Determine paths based on environment
     const isProduction = process.env.NODE_ENV === 'production' || __dirname.includes('/dist/');
     const basePath = isProduction ? __dirname : process.cwd();
     mainLogger.info('Environment:', isProduction ? 'production' : 'development');
@@ -56,86 +56,86 @@ class MonitoringServer {
     mainLogger.info('Views exists?', require('fs').existsSync(viewsPath));
 
     
-    // Middleware аутентификации (перед статикой, но с исключениями для статических путей)
+    // Auth middleware (before static, with exceptions for static paths)
     const authLogger = Logger.withPrefix('Auth');
     this.app.use((req, res, next) => {
-      authLogger.debug(`Запрос: ${req.method} ${req.path}, IP: ${req.ip}`);
-      // Если пользователей нет, аутентификация не требуется
+      authLogger.debug(`Request: ${req.method} ${req.path}, IP: ${req.ip}`);
+      // If no users exist, authentication is not required
       if (!auth.hasUsers()) {
-        authLogger.debug(`Аутентификация не требуется (нет пользователей): ${req.method} ${req.path}`);
+        authLogger.debug(`Authentication not required (no users): ${req.method} ${req.path}`);
         return next();
       }
 
-      // Пути, не требующие аутентификации
+      // Paths that don't require authentication
       const publicPaths = ['/login', '/api/login', '/api/logout', '/logout'];
       const staticPrefixes = ['/css/', '/js/', '/public/'];
       if (publicPaths.includes(req.path) || staticPrefixes.some(prefix => req.path.startsWith(prefix))) {
-        authLogger.debug(`Публичный путь: ${req.path}, пропускаем аутентификацию`);
+        authLogger.debug(`Public path: ${req.path}, skipping authentication`);
         return next();
       }
 
-      // Получение токена из куки или заголовка
+      // Get token from cookie or header
       let token = req.cookies?.session_token || req.headers['x-session-token'] as string;
 
-      // Если токен не найден, проверяем Authorization header
+      // If token not found, check Authorization header
       if (!token && req.headers.authorization?.startsWith('Bearer ')) {
         token = req.headers.authorization.substring(7);
       }
 
       if (!token) {
-        // Для API запросов возвращаем 401
+        // For API requests, return 401
         if (req.path.startsWith('/api/')) {
-          authLogger.warn(`Отказ в доступе (нет токена) API: ${req.method} ${req.path} от ${req.ip}`);
-          return res.status(401).json({ error: 'Требуется аутентификация' });
+          authLogger.warn(`Access denied (no token) API: ${req.method} ${req.path} from ${req.ip}`);
+          return res.status(401).json({ error: 'Authentication required' });
         }
-        // Для веб-страниц редирект на страницу логина
-        authLogger.warn(`Перенаправление на логин (нет токена): ${req.method} ${req.path} от ${req.ip}`);
+        // For web pages, redirect to login page
+        authLogger.warn(`Redirecting to login (no token): ${req.method} ${req.path} from ${req.ip}`);
         return res.redirect('/login');
       }
 
-      // Проверка токена
+      // Validate token
       if (!auth.validateSession(token)) {
-        // Удаляем невалидную куку
+        // Remove invalid cookie
         res.clearCookie('session_token');
-        authLogger.warn(`Недействительная сессия: ${req.method} ${req.path} от ${req.ip}`);
+        authLogger.warn(`Invalid session: ${req.method} ${req.path} from ${req.ip}`);
 
         if (req.path.startsWith('/api/')) {
-          return res.status(401).json({ error: 'Недействительная сессия' });
+          return res.status(401).json({ error: 'Invalid session' });
         }
         return res.redirect('/login');
       }
 
-      // Получаем пользователя из сессии
+      // Get user from session
       const username = auth.getSessionUser(token);
       if (!username) {
-        authLogger.warn(`Сессия без пользователя: ${req.method} ${req.path} от ${req.ip}`);
+        authLogger.warn(`Session without user: ${req.method} ${req.path} from ${req.ip}`);
         if (req.path.startsWith('/api/')) {
-          return res.status(401).json({ error: 'Ошибка сессии' });
+          return res.status(401).json({ error: 'Session error' });
         }
         return res.redirect('/login');
       }
 
-      // Логируем успешный доступ
-      authLogger.debug(`Доступ разрешен: ${username} -> ${req.method} ${req.path} от ${req.ip}`);
-      // Добавляем пользователя в объект запроса
+      // Log successful access
+      authLogger.debug(`Access granted: ${username} -> ${req.method} ${req.path} from ${req.ip}`);
+      // Attach user to request object
       (req as any).user = username;
       return next();
     });
 
-    // Обслуживание статических файлов (после middleware аутентификации)
+    // Serve static files (after auth middleware)
     this.app.use(express.static(publicPath));
 
-    // Настройка шаблонизатора
+    // Configure template engine
     this.app.set('view engine', 'ejs');
     this.app.set('views', viewsPath);
     this.app.engine('ejs', ejs.renderFile);
 
-    // Маршруты аутентификации
+    // Auth routes
     this.app.post('/api/login', (req, res) => {
       const { username, password } = req.body;
       
       if (!username || !password) {
-        return res.status(400).json({ error: 'Не указано имя пользователя или пароль' });
+        return res.status(400).json({ error: 'Username or password not specified' });
       }
 
       const result = auth.authenticate(username, password);
@@ -145,10 +145,10 @@ class MonitoringServer {
 
       const session = auth.createSession(username);
       
-      // Устанавливаем куку
+      // Set cookie
       res.cookie('session_token', session.token, {
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000, // 24 часа
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
         sameSite: 'strict'
       });
 
@@ -165,7 +165,7 @@ class MonitoringServer {
     });
 
     this.app.get('/login', (req, res) => {
-      // Если уже авторизован, редирект на главную
+      // If already authenticated, redirect to main page
       const token = req.cookies?.session_token;
       if (token && auth.validateSession(token)) {
         return res.redirect('/');
@@ -182,19 +182,19 @@ class MonitoringServer {
       return res.redirect('/login');
     });
 
-    // Основные маршруты
+    // Main routes
     this.app.use('/', statusRoutes);
 
-    // Обработка ошибок 404
+    // 404 error handler
     this.app.use((req, res) => {
       mainLogger.warn('404 Not Found:', req.method, req.url);
-      res.status(404).json({ error: 'Не найдено' });
+      res.status(404).json({ error: 'Not found' });
     });
 
-    // Обработка ошибок
+    // Error handler
     this.app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-      mainLogger.error('Ошибка сервера:', err.stack);
-      res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+      mainLogger.error('Server error:', err.stack);
+      res.status(500).json({ error: 'Internal server error' });
     });
   }
 
@@ -204,28 +204,28 @@ class MonitoringServer {
     const bindAddress = settings.bindAddress;
 
     this.server = this.app.listen(port, bindAddress, () => {
-      mainLogger.info(`Сервер мониторинга запущен на http://${bindAddress}:${port}`);
-      mainLogger.info('Используемые настройки:', settings);
+      mainLogger.info(`Monitoring server started on http://${bindAddress}:${port}`);
+      mainLogger.info('Using settings:', settings);
     });
 
-    // Запуск планировщика проверок
+    // Start scheduler
     scheduler.start();
 
-    // Обработка корректного завершения
+    // Handle graceful shutdown
     process.on('SIGINT', () => this.stop());
     process.on('SIGTERM', () => this.stop());
   }
 
   stop(): void {
-    mainLogger.info('Остановка сервера мониторинга...');
+    mainLogger.info('Stopping monitoring server...');
     scheduler.stopAll();
     notificationManager.shutdown().catch(err => {
-      mainLogger.error('Ошибка остановки менеджера уведомлений:', err);
+      mainLogger.error('Error stopping notification manager:', err);
     });
     database.close();
     if (this.server) {
       this.server.close(() => {
-        mainLogger.info('Сервер остановлен');
+        mainLogger.info('Server stopped');
         process.exit(0);
       });
     } else {
@@ -234,14 +234,14 @@ class MonitoringServer {
   }
 }
 
-// Запуск приложения
+// Start application
 (async (): Promise<void> => {
   try {
     const server = new MonitoringServer();
     await server.initialize();
     server.start();
   } catch (err) {
-    mainLogger.error('Не удалось запустить сервер:', err);
+    mainLogger.error('Failed to start server:', err);
     process.exit(1);
   }
 })();

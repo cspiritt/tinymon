@@ -33,3 +33,9 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+
+# Vendor assets (generated during build)
+public/vendor/
+
+# Qwen Code configuration
+.qwen/

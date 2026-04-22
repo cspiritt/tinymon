@@ -1,11 +1,11 @@
 import net from 'net';
 
 /**
- * TCP ping - проверка доступности хоста через TCP соединение
- * @param host - хост или IP адрес
- * @param port - порт (по умолчанию 80)
- * @param timeout - таймаут в миллисекундах
- * @returns true если хост доступен
+ * TCP ping - host availability check via TCP connection
+ * @param host - host or IP address
+ * @param port - port (default 80)
+ * @param timeout - timeout in milliseconds
+ * @returns true if host is available
  */
 function tcpPing(host: string, port = 80, timeout = 5000): Promise<boolean> {
   return new Promise((resolve) => {
@@ -43,14 +43,14 @@ function tcpPing(host: string, port = 80, timeout = 5000): Promise<boolean> {
 }
 
 /**
- * Проверка доступности IP адреса с автоопределением порта
- * @param address - IP адрес или хост
- * @param timeout - таймаут в миллисекундах
- * @returns true если хост доступен
+ * IP address availability check with automatic port detection
+ * @param address - IP address or host
+ * @param timeout - timeout in milliseconds
+ * @returns true if host is available
  */
 async function checkIpAddress(address: string, timeout = 5000): Promise<boolean> {
-  // Пытаемся определить порт по умолчанию
-  // Если адрес содержит порт (например, 1.1.1.1:53), используем его
+  // Try to determine default port
+  // If address contains port (e.g., 1.1.1.1:53), use it
   let host = address;
   let port = 80;
 
@@ -63,7 +63,7 @@ async function checkIpAddress(address: string, timeout = 5000): Promise<boolean>
     }
   }
 
-  // Пробуем несколько стандартных портов
+  // Try several standard ports
   const commonPorts = [80, 443, 22, 53, 8080];
 
   for (const testPort of commonPorts) {
@@ -73,11 +73,11 @@ async function checkIpAddress(address: string, timeout = 5000): Promise<boolean>
         return true;
       }
     } catch (err) {
-      // Продолжаем пробовать другие порты
+      // Continue trying other ports
     }
   }
 
-  // Если ни один порт не ответил, пробуем указанный порт (или 80 по умолчанию)
+  // If no port responded, try specified port (or 80 by default)
   return tcpPing(host, port, timeout);
 }
 
