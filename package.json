@@ -24,6 +24,7 @@
   "description": "",
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.9.0",
     "body-parser": "^2.2.2",
     "cookie-parser": "^1.4.7",
     "ejs": "^5.0.2",
@@ -47,7 +48,6 @@
     "@types/node-cron": "^3.0.11",
     "@types/node-telegram-bot-api": "*",
     "babel-loader": "^10.1.1",
-    "better-sqlite3": "^12.9.0",
     "copy-webpack-plugin": "^14.0.0",
     "fs-extra": "^11.3.4",
     "nodemon": "^3.1.14",
