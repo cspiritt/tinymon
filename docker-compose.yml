@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  tinymon:
+    build: .
+    container_name: tinymon
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATA_PATH=/data
+      - PORT=3000
+      - BIND_ADDRESS=0.0.0.0
+      # Uncomment and set admin password (optional)
+      # - ADMIN_PASSWORD=your_secure_password_here
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/status"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - tinymon-network
+
+  # Optional: PostgreSQL database (if using PostgreSQL instead of SQLite)
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: tinymon-postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     - POSTGRES_DB=tinymon
+  #     - POSTGRES_USER=postgres
+  #     - POSTGRES_PASSWORD=your_postgres_password
+  #   volumes:
+  #     - ./postgres-data:/var/lib/postgresql/data
+  #   networks:
+  #     - tinymon-network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+networks:
+  tinymon-network:
+    driver: bridge
+
+volumes:
+  data:
+    driver: local
+  # postgres-data:
+  #   driver: local
