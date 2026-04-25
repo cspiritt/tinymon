@@ -34,33 +34,36 @@ class Scheduler {
   }
 
   private scheduleService(service: Service): void {
-    let cronExpression: string;
-    
     if (service.type === 'ssl') {
       // For SSL services use check_at time for daily check
-      cronExpression = this.generateCronExpressionForSSL(service);
+      const cronExpression = this.generateCronExpressionForSSL(service);
       schedulerLogger.debug(`SSL service ${service.name}: scheduled check ${cronExpression} (${service.check_at})`);
+
+      const job = cron.schedule(cronExpression, async () => {
+        await this.executeCheck(service);
+      }, {
+        timezone: 'UTC'
+      });
+
+      this.jobs.set(service.id, job);
     } else {
-      // Convert interval in seconds to cron expression
-      // For example, every 30 seconds: */30 * * * * *
-      // But node-cron supports seconds (six fields)
-      const interval = service.interval;
-      if (interval < 10) {
-        schedulerLogger.warn(`Interval too small for service ${service.name}: ${interval} seconds. Minimum 10 seconds.`);
-        return;
-      }
+      // For interval-based services, use setInterval instead of cron.
+      // Cron's seconds field only supports 0-59, so */interval breaks
+      // for intervals >= 60 (runs every minute instead of every N seconds).
+      const intervalMs = service.interval * 1000;
+      schedulerLogger.debug(
+        `Service ${service.name}: scheduled check every ${service.interval}s (${intervalMs}ms)`
+      );
 
-      // Create cron expression: every N seconds
-      cronExpression = `*/${interval} * * * * *`;
+      const timer = setInterval(async () => {
+        await this.executeCheck(service);
+      }, intervalMs);
+      this.jobs.set(service.id, {
+        stop: () => clearInterval(timer),
+        start: () => {},
+        getStatus: () => 'scheduled'
+      } as unknown as ScheduledTask);
     }
-
-    const job = cron.schedule(cronExpression, async () => {
-      await this.executeCheck(service);
-    }, {
-      timezone: 'UTC'
-    });
-
-    this.jobs.set(service.id, job);
 
     // Immediately perform first check
     setTimeout(() => {

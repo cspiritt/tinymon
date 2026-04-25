@@ -275,7 +275,7 @@ class MonitoringUI {
 
     private async loadServiceHistory(serviceId: string, serviceName: string): Promise<void> {
         try {
-            const response = await this.apiFetch(`/api/service/${serviceId}/checks?limit=20`);
+            const response = await this.apiFetch(`/api/service/${serviceId}/checks?limit=100`);
             const data = await response.json() as APIResponse<ChecksResponse>;
             console.log('History API response:', data);
 
@@ -307,13 +307,18 @@ class MonitoringUI {
             header.textContent = `Check history: ${serviceName}`;
         }
 
+        // Sort by time ascending so chart and table share the same index order
+        const sorted = [...checks].sort((a, b) => a.checkedAt - b.checkedAt);
+
         // Generate content
         let html = '';
 
-        if (checks.length === 0) {
+        if (sorted.length === 0) {
             html = '<p class="no-history">No check history available</p>';
         } else {
-            html = `
+            // Render chart above the table
+            html += this.renderHistoryChart(sorted);
+            html += `
                 <div class="history-table">
                     <table>
                         <thead>
@@ -325,8 +330,10 @@ class MonitoringUI {
                             </tr>
                         </thead>
                         <tbody>
-                            ${checks.map(check => `
-                                <tr>
+                            ${sorted.slice().reverse().map((check, ri) => {
+                                const originalIndex = sorted.length - 1 - ri;
+                                return `
+                                <tr data-check-index="${originalIndex}">
                                     <td>${dateFormatter.format(check.checkedAt * 1000)}</td>
                                     <td>
                                         <span class="history-status status-${check.status}">
@@ -336,7 +343,8 @@ class MonitoringUI {
                                     <td>${check.responseTime ? check.responseTime + 'ms' : '—'}</td>
                                     <td class="error-message">${check.errorMessage || '—'}</td>
                                 </tr>
-                            `).join('')}
+                            `;
+                            }).join('')}
                         </tbody>
                     </table>
                 </div>
@@ -345,6 +353,123 @@ class MonitoringUI {
 
         historyContent.innerHTML = html;
         modal.classList.add('active');
+
+        // Attach chart point click handlers after rendering
+        const svg = historyContent.querySelector<SVGSVGElement>('.history-chart');
+        svg?.addEventListener('click', (e: Event) => {
+            const target = e.target as SVGElement;
+            const circle = target.closest<SVGCircleElement>('.chart-point');
+            if (!circle) return;
+
+            const index = parseInt(circle.getAttribute('data-check-index') || '', 10);
+            if (isNaN(index)) return;
+
+            this.selectHistoryRow(index);
+        });
+    }
+
+    private renderHistoryChart(sorted: Check[]): string {
+        const count = sorted.length;
+        if (count === 0) return '';
+
+        const width = 800;
+        const height = 220;
+        const pad = { top: 15, right: 15, bottom: 35, left: 50 };
+        const plotW = width - pad.left - pad.right;
+        const plotH = height - pad.top - pad.bottom;
+
+        // Find max response time for Y-axis scale
+        const maxRt = Math.max(...sorted.map(c => c.responseTime || 0), 1);
+        const yMax = Math.ceil(maxRt * 1.1);
+
+        // X-axis is divided into 100 fixed slots so points fill left to right
+        // without stretching the chart area as new checks come in
+        const totalSlots = 100;
+        const xPos = (i: number) =>
+            pad.left + (i / (totalSlots - 1)) * plotW;
+        const yPos = (v: number) =>
+            pad.top + plotH - (v / yMax) * plotH;
+        const bottomY = pad.top + plotH;
+
+        // Helper to get point color by status
+        const pointColor = (status: string) =>
+            status === 'success' ? '#2ecc71' : '#e74c3c';
+
+        // Build SVG
+        let svg = `<svg class="history-chart" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">`;
+
+        // Grid lines + Y-axis labels
+        const gridCount = 5;
+        for (let i = 0; i <= gridCount; i++) {
+            const y = pad.top + (i / gridCount) * plotH;
+            const label = Math.round(yMax - (i / gridCount) * yMax);
+            svg += `<line x1="${pad.left}" y1="${y}" x2="${width - pad.right}" y2="${y}" stroke="#e9ecef" stroke-width="1"/>`;
+            svg += `<text x="${pad.left - 6}" y="${y + 4}" text-anchor="end" fill="#6c757d" font-size="11">${label}ms</text>`;
+        }
+
+        // X-axis labels (every 10th check + always the last point)
+        const labelStep = 10;
+        for (let i = 0; i < count; i += labelStep) {
+            const x = pad.left + (i / (totalSlots - 1)) * plotW;
+            const d = new Date(sorted[i].checkedAt * 1000);
+            const label = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            svg += `<text x="${x}" y="${height - 5}" text-anchor="end" fill="#6c757d" font-size="10">${label}</text>`;
+        }
+        // Always label the last point
+        const lastI = count - 1;
+        if (lastI % labelStep !== 0) {
+            const x = pad.left + (lastI / (totalSlots - 1)) * plotW;
+            const d = new Date(sorted[lastI].checkedAt * 1000);
+            const label = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            svg += `<text x="${x}" y="${height - 5}" text-anchor="end" fill="#6c757d" font-size="10">${label}</text>`;
+        }
+
+        // Area fill segments — each segment matches the line colour above it, with low opacity
+        for (let i = 0; i < count - 1; i++) {
+            const x1 = xPos(i);
+            const y1 = yPos(sorted[i].responseTime || 0);
+            const x2 = xPos(i + 1);
+            const y2 = yPos(sorted[i + 1].responseTime || 0);
+            const color = pointColor(sorted[i].status);
+            svg += `<polygon points="${x1},${y1} ${x2},${y2} ${x2},${bottomY} ${x1},${bottomY}" fill="${color}" fill-opacity="0.12"/>`;
+        }
+
+        // Line segments — each segment coloured by the left point's status
+        for (let i = 0; i < count - 1; i++) {
+            const x1 = xPos(i);
+            const y1 = yPos(sorted[i].responseTime || 0);
+            const x2 = xPos(i + 1);
+            const y2 = yPos(sorted[i + 1].responseTime || 0);
+            const color = pointColor(sorted[i].status);
+            svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="2" stroke-linecap="round"/>`;
+        }
+
+        // Points
+        sorted.forEach((c, i) => {
+            const x = xPos(i);
+            const y = yPos(c.responseTime || 0);
+            svg += `<circle class="chart-point" cx="${x}" cy="${y}" r="4.5" fill="${pointColor(c.status)}" stroke="#fff" stroke-width="2" cursor="pointer" data-check-index="${i}"/>`;
+        });
+
+        svg += '</svg>';
+        return svg;
+    }
+
+    private selectHistoryRow(index: number): void {
+        const table = this.historyContent?.querySelector('.history-table table');
+        if (!table) return;
+
+        // Remove previous highlight
+        table.querySelectorAll('.history-row-selected').forEach(el => {
+            el.classList.remove('history-row-selected');
+        });
+
+        // Highlight the target row
+        const row = table.querySelector<HTMLElement>(`tr[data-check-index="${index}"]`);
+        if (row) {
+            row.classList.add('history-row-selected');
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     }
 
     private async forceCheckService(serviceId: string, serviceName: string): Promise<void> {
@@ -548,6 +673,22 @@ class MonitoringUI {
                     padding: 40px 20px;
                     color: #6c757d;
                     font-style: italic;
+                }
+                .history-chart {
+                    width: 100%;
+                    height: auto;
+                    margin-bottom: 20px;
+                    background: #fafbfc;
+                    border-radius: 8px;
+                    border: 1px solid #e9ecef;
+                }
+                .history-row-selected {
+                    background: #fff3cd !important;
+                    outline: 2px solid #ffc107;
+                    outline-offset: -2px;
+                }
+                .history-row-selected td {
+                    background: #fff3cd !important;
                 }
             `;
             document.head.appendChild(historyStyles);
