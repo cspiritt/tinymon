@@ -14,7 +14,7 @@ class Scheduler {
 
   start(): void {
     schedulerLogger.debug('Starting check scheduler...');
-    this.scheduleAllServices();
+    this.scheduleAllServices(true);
 
     // Also schedule configuration reload every 5 minutes
     cron.schedule('*/5 * * * *', () => {
@@ -22,18 +22,18 @@ class Scheduler {
     });
   }
 
-  private scheduleAllServices(): void {
+  private scheduleAllServices(immediateCheck: boolean = false): void {
     // Stop existing tasks
     this.stopAll();
 
     const services = config.getServices();
     for (const service of services) {
-      this.scheduleService(service);
+      this.scheduleService(service, immediateCheck);
     }
     schedulerLogger.debug(`Scheduled checks: ${services.length}`);
   }
 
-  private scheduleService(service: Service): void {
+  private scheduleService(service: Service, immediateCheck: boolean = false): void {
     if (service.type === 'ssl') {
       // For SSL services use check_at time for daily check
       const cronExpression = this.generateCronExpressionForSSL(service);
@@ -65,10 +65,12 @@ class Scheduler {
       } as unknown as ScheduledTask);
     }
 
-    // Immediately perform first check
-    setTimeout(() => {
-      this.executeCheck(service);
-    }, 1000);
+    // Only perform the immediate first check on initial startup, not on every reload
+    if (immediateCheck) {
+      setTimeout(() => {
+        this.executeCheck(service);
+      }, 1000);
+    }
   }
   
   private generateCronExpressionForSSL(service: Service): string {
@@ -118,7 +120,10 @@ class Scheduler {
     schedulerLogger.debug('Reloading configuration...');
     await config.load();
     database.syncServices(config.getServices());
-    this.scheduleAllServices();
+    // Don't re-schedule existing services here — the periodic reload (every 5 min)
+    // was destroying and recreating all setInterval timers, causing interval-based
+    // checks to reset their countdown and run far less often than configured.
+    // Restart the server to pick up config changes that require re-scheduling.
   }
 }
 
