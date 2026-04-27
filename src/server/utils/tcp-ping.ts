@@ -53,6 +53,7 @@ async function checkIpAddress(address: string, timeout = 5000): Promise<boolean>
   // If address contains port (e.g., 1.1.1.1:53), use it
   let host = address;
   let port = 80;
+  let hasExplicitPort = false;
 
   if (address.includes(':')) {
     const parts = address.split(':');
@@ -60,7 +61,14 @@ async function checkIpAddress(address: string, timeout = 5000): Promise<boolean>
     const portPart = parseInt(parts[1], 10);
     if (!isNaN(portPart) && portPart > 0 && portPart <= 65535) {
       port = portPart;
+      hasExplicitPort = true;
     }
+  }
+
+  // If the user specified a port explicitly, go directly to it —
+  // don't waste time probing common ports first.
+  if (hasExplicitPort) {
+    return tcpPing(host, port, timeout);
   }
 
   // Try several standard ports
