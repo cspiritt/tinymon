@@ -283,7 +283,10 @@ docker run -d \
 ## Health Checks
 
 The container includes a health check that verifies the API is responding:
-- Checks `/api/status` endpoint every 30 seconds
+- Checks `http://127.0.0.1:3000/api/status` every 30 seconds using Node.js
+- HTTP 2xx and 401 count as healthy; other responses and connection errors fail
+- This checks HTTP liveness only, not database or monitored resource health
+- The probe has a 2-second deadline
 - Timeout: 3 seconds
 - Retries: 3 times
 - Start period: 5 seconds
