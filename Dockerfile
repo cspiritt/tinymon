@@ -46,6 +46,7 @@ COPY --from=builder --chown=nodejs:nodejs /app/public/vendor /app/dist/public/ve
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /app/
+COPY scripts/healthcheck.js /app/scripts/healthcheck.js
 RUN chmod +x /app/docker-entrypoint.sh
 
 # Create symlinks for configuration
@@ -63,7 +64,7 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/status || exit 1
+    CMD ["node", "/app/scripts/healthcheck.js"]
 
 # Entrypoint
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
